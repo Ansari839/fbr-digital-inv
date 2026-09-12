@@ -1,0 +1,119 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model BusinessUnit {
+  id            String   @id @default(cuid())
+  ntn           String
+  strn          String?
+  name          String
+  logoUrl       String?
+  addresses     PartyAddress[]
+  invoices      Invoice[]
+  items         Item[]
+}
+
+model Party {
+  id           String   @id @default(cuid())
+  ntnOrCnic    String
+  name         String
+  isRegistered Boolean
+  addresses    PartyAddress[]
+  invoices     Invoice[]
+}
+
+model PartyAddress {
+  id             String   @id @default(cuid())
+  partyId        String?
+  businessUnitId String?
+  label          String
+  addressLine    String
+  province       String
+  branchCode     String?
+  party          Party?   @relation(fields: [partyId], references: [id])
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  invoices       Invoice[]
+}
+
+model Item {
+  id             String   @id @default(cuid())
+  businessUnitId String
+  hsCode         String
+  uom            String
+  name           String
+  defaultRate    Decimal
+  stockQty       Decimal  @default(0)
+  businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  invoiceItems   InvoiceLineItem[]
+}
+
+model Invoice {
+  id               String   @id @default(cuid())
+  businessUnitId   String
+  partyId          String
+  partyAddressId   String
+  environment      String
+  fbrIrn           String?
+  fbrTimestamp     DateTime?
+  status           String
+  totalAmount      Decimal
+  createdAt        DateTime @default(now())
+  businessUnit     BusinessUnit @relation(fields: [businessUnitId], references: [id])
+  party            Party @relation(fields: [partyId], references: [id])
+  partyAddress     PartyAddress @relation(fields: [partyAddressId], references: [id])
+  lineItems        InvoiceLineItem[]
+  apiLogs          ApiLog[]
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  itemId      String
+  quantity    Decimal
+  rate        Decimal
+  hsCode      String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  item        Item    @relation(fields: [itemId], references: [id])
+}
+
+model ApiLog {
+  id          String   @id @default(cuid())
+  invoiceId   String?
+  endpoint    String
+  requestBody Json
+  responseBody Json?
+  statusCode  Int?
+  createdAt   DateTime @default(now())
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+}
+
+model TaxReturnPeriod {
+  id          String   @id @default(cuid())
+  businessUnitId String
+  monthYear   String   // e.g. "2026-03"
+  isFiled     Boolean  @default(false)
+  totalSales  Decimal  @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model HsCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Uom {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
