@@ -64,9 +64,11 @@ model Invoice {
   partyAddressId   String
   environment      String
   fbrIrn           String?
+  serialNumber     Int      @default(autoincrement())
   fbrTimestamp     DateTime?
   status           String
   totalAmount      Decimal
+  applyWht         Boolean  @default(true)
   forceIssueReason String?
   createdAt        DateTime @default(now())
   businessUnit     BusinessUnit @relation(fields: [businessUnitId], references: [id])

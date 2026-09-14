@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { payload, buyerNTNCNIC, buyerBusinessName, buyerProvince, buyerAddress, forceIssueReason, items } = body;
+    const { payload, buyerNTNCNIC, buyerBusinessName, buyerProvince, buyerAddress, forceIssueReason, items, applyWht } = body;
 
     // 1. Get or Default Business Unit
     let bu = await prisma.businessUnit.findFirst();
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
         fbrTimestamp: mockFbrTimestamp,
         status: "Submitted",
         totalAmount,
+        applyWht: applyWht !== undefined ? applyWht : true,
         forceIssueReason: forceIssueReason || null,
         lineItems: {
           create: items.map((i: any) => ({

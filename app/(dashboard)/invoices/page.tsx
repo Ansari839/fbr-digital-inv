@@ -116,7 +116,7 @@ export default function InvoicesListPage() {
           <Table>
             <TableHeader className="bg-slate-50/80">
               <TableRow>
-                <TableHead className="w-40">Invoice # (IRN)</TableHead>
+                <TableHead className="w-48">Invoice Ref & IRN</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Buyer</TableHead>
                 <TableHead className="text-right">Total Amount</TableHead>
@@ -144,8 +144,13 @@ export default function InvoicesListPage() {
               ) : (
                 invoices.map((inv) => (
                   <TableRow key={inv.id} className="hover:bg-slate-50">
-                    <TableCell className="font-medium text-slate-900">
-                      {inv.fbrIrn || 'Pending'}
+                    <TableCell>
+                      <div className="font-semibold text-slate-900">
+                        {inv.serialNumber ? String(inv.serialNumber).padStart(3, '0') : 'N/A'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                        {inv.fbrIrn || 'Pending IRN'}
+                      </div>
                     </TableCell>
                     <TableCell className="text-slate-500">
                       {new Date(inv.createdAt).toLocaleDateString()}
@@ -169,7 +174,7 @@ export default function InvoicesListPage() {
                       <InvoiceTimer fbrTimestamp={inv.fbrTimestamp} />
                     </TableCell>
                     <TableCell>
-                      <Link href={`/invoices/${inv.id}`}>
+                      <Link href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-[var(--primary)] hover:bg-slate-100">
                           <Eye className="h-4 w-4" />
                         </Button>

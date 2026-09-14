@@ -3,227 +3,348 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-
-// In a real app, this data would come from the database based on the ID
-const DUMMY_INVOICE = {
-  id: "017",
-  date: "15-08-2026",
-  fbrInvoiceNo: "4220108920827DIU8ET0V439174",
-  seller: {
-    name: "FABTEX INTERNATIONAL",
-    ntn: "1038354",
-    strn: "11-90-9999-329-55",
-    address: "PLOT No. F - 96, OFF HUB RIVER ROAD, SITE, Karachi West Site Town"
-  },
-  buyer: {
-    name: "HUSSAIN ENTERPRISES",
-    ntnCnic: "3042306",
-    address: "OFFICE # 01, 1st FLOOR, MASHA ALLAH PLAZA, STREET # 2, KARKHANA BAZAR, FAISALABAD, FAISALABAD LYALLPUR TOWN"
-  },
-  items: [
-    {
-      sNo: 1,
-      desc: "NYLON YARN",
-      hsCode: "5402.4500",
-      uom: "KG",
-      qty: 234.21,
-      unitPrice: 840.00,
-      valueExcl: 196737.24,
-      salesTaxPercent: 18.00,
-      salesTaxAmount: 35412.70,
-      furtherTaxPercent: 0.00,
-      furtherTaxAmount: 0.00,
-      total: 232149.94
-    }
-  ]
-};
+import toWords from "number-to-words";
 
 export default function InvoicePrintPage() {
-  const [mounted, setMounted] = useState(false);
+  const { id } = useParams();
   const router = useRouter();
-  
+  const [invoice, setInvoice] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    setMounted(true);
-    // Auto trigger print dialog after small delay to let QR code render
-    const timer = setTimeout(() => {
-      window.print();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!id) return;
+    fetch(`/api/invoices/${id}`)
+      .then((r) => r.json())
+      .then((d) => setInvoice(d))
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+  }, [id]);
 
-  if (!mounted) return null;
+  useEffect(() => {
+    if (!invoice || isLoading) return;
+    const t = setTimeout(() => window.print(), 700);
+    return () => clearTimeout(t);
+  }, [invoice, isLoading]);
 
-  const totalValueExcl = DUMMY_INVOICE.items.reduce((a, b) => a + b.valueExcl, 0);
-  const totalSalesTax = DUMMY_INVOICE.items.reduce((a, b) => a + b.salesTaxAmount, 0);
-  const totalFurtherTax = DUMMY_INVOICE.items.reduce((a, b) => a + b.furtherTaxAmount, 0);
-  const grandTotal = DUMMY_INVOICE.items.reduce((a, b) => a + b.total, 0);
-  const whtAmount = 232.15; // Hardcoded dummy logic matching PDF
-  const finalInvoiceValue = grandTotal + whtAmount;
+  if (isLoading)
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <p>Loading…</p>
+      </div>
+    );
+
+  if (!invoice)
+    return (
+      <div style={{ padding: "40px", textAlign: "center" }}>
+        <h2>Invoice Not Found</h2>
+        <button onClick={() => router.back()}>Back</button>
+      </div>
+    );
+
+  /* ── Calculations ── */
+  const rows = invoice.lineItems.map((li: any) => {
+    const qty     = Number(li.quantity);
+    const rate    = Number(li.rate);
+    const taxRate = Number(li.item?.taxRate ?? 18);
+    const excl    = qty * rate;
+    const stax    = (excl * taxRate) / 100;
+    return { ...li, qty, rate, excl, stax, total: excl + stax };
+  });
+
+  const totQty   = rows.reduce((s: number, r: any) => s + r.qty,   0);
+  const totExcl  = rows.reduce((s: number, r: any) => s + r.excl,  0);
+  const totStax  = rows.reduce((s: number, r: any) => s + r.stax,  0);
+  const grand    = totExcl + totStax;
+  const wht      = grand * 0.001;
+  const final_   = grand + wht;
+
+  const intP  = Math.floor(final_);
+  const decP  = Math.round((final_ - intP) * 100);
+  const words = (
+    toWords.toWords(intP).toUpperCase() +
+    " RUPEES AND " +
+    (decP > 0 ? toWords.toWords(decP).toUpperCase() + " PAISE" : "ZERO PAISE") +
+    " ONLY"
+  );
+
+  const f  = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const dt = new Date(invoice.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-");
+  const ref = invoice.id.slice(-6).toUpperCase();
+
+  /* ── Shared cell style ── */
+  const td = (extra?: object): object => ({
+    border: "1px solid #000",
+    padding: "5px 5px",
+    fontSize: "11px",
+    ...extra,
+  });
 
   return (
-    <div className="bg-white min-h-screen">
-      {/* Non-Printable Controls */}
-      <div className="print:hidden p-4 bg-slate-100 border-b flex justify-between items-center mb-8">
-        <p className="text-sm text-slate-500">Printing A4 FBR Default Format...</p>
-        <div className="flex gap-2">
-          <button onClick={() => router.back()} className="px-4 py-2 bg-white border rounded text-sm hover:bg-slate-50">Back</button>
-          <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Print Now</button>
+    <>
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+        * { box-sizing: border-box; }
+        @media print {
+          .no-print { display: none !important; }
+          body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* Force hide browser header/footer text */
+          html { -webkit-print-color-adjust: exact; }
+        }
+      `}</style>
+
+      {/* ── Screen controls ── */}
+      <div className="no-print" style={{
+        background: "#f1f5f9", borderBottom: "1px solid #cbd5e1",
+        padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center"
+      }}>
+        <span style={{ fontSize: "13px", color: "#64748b" }}>FBR A4 Print Preview</span>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => router.back()} style={{
+            padding: "7px 16px", border: "1px solid #cbd5e1", borderRadius: "4px",
+            background: "#fff", cursor: "pointer", fontSize: "13px"
+          }}>Back</button>
+          <button onClick={() => window.print()} style={{
+            padding: "7px 16px", borderRadius: "4px",
+            background: "#1e3b70", color: "#fff", border: "none", cursor: "pointer", fontSize: "13px"
+          }}>Print / Save PDF</button>
         </div>
       </div>
 
-      {/* Printable Area A4 */}
-      <div className="w-[210mm] min-h-[297mm] mx-auto bg-white p-8 font-sans text-slate-900 border print:border-0 shadow-lg print:shadow-none">
-        
-        {/* Header */}
-        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
-          <div className="w-1/4">
-            {/* Dummy Logo Placeholder */}
-            <div className="h-20 w-20 bg-blue-900 flex items-center justify-center text-white font-bold italic text-3xl">
-              F
-            </div>
-            <p className="text-[10px] text-blue-900 mt-1 font-semibold tracking-tighter">FABTEX INTERNATIONAL</p>
-          </div>
-          
-          <div className="w-2/4 text-center">
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight mb-2">{DUMMY_INVOICE.seller.name}</h1>
-            <div className="text-sm font-medium space-y-0.5">
-              <p>NTN: <span className="font-normal">{DUMMY_INVOICE.seller.ntn}</span></p>
-              <p>STRN: <span className="font-normal">{DUMMY_INVOICE.seller.strn}</span></p>
-              <p className="text-xs font-normal mt-2">{DUMMY_INVOICE.seller.address}</p>
-            </div>
+      {/* ═══════════════════════ A4 SHEET ═══════════════════════ */}
+      <div style={{
+        width: "210mm",
+        minHeight: "297mm",
+        margin: "0 auto",
+        background: "#fff",
+        padding: "12mm 14mm 12mm",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        fontSize: "11px",
+        color: "#000",
+        boxShadow: "0 0 18px rgba(0,0,0,.15)",
+      }}>
+
+        {/* ── HEADER ── */}
+        <div style={{ display: "flex", alignItems: "flex-start", marginBottom: "0", paddingBottom: "12px", borderBottom: "1.5px solid #000" }}>
+
+          {/* Company avatar (initials) — seller's own logo area, NOT FBR logo */}
+          <div style={{ minWidth: "110px" }}>
+            {(() => {
+              const name = invoice.businessUnit?.name || "CO";
+              const initials = name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+              const colors = ["#1a3f7a","#0d6e4f","#7c2d12","#4a1d96","#065f46","#831843","#1e40af"];
+              const bg = colors[name.length % colors.length];
+              return (
+                <>
+                  <div style={{
+                    width: "64px", height: "64px", borderRadius: "8px",
+                    backgroundColor: bg,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "#fff", fontWeight: "900", fontSize: "22px",
+                    fontFamily: "Arial, sans-serif"
+                  }}>
+                    {initials}
+                  </div>
+                  <p style={{ fontSize: "7px", fontWeight: "700", color: bg, marginTop: "4px", textTransform: "uppercase", lineHeight: "1.3" }}>
+                    {name}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
-          <div className="w-1/4 flex justify-end">
-            <div className="bg-slate-200 px-4 py-2 text-center h-fit mt-12">
-              <p className="font-bold tracking-widest text-sm">SALES TAX INVOICE</p>
+          {/* Center: company name + details */}
+          <div style={{ flex: 1, textAlign: "center" }}>
+            <h1 style={{
+              fontSize: "26px", fontWeight: "900", color: "#1a3f7a",
+              margin: "0 0 8px", letterSpacing: "0.5px", textTransform: "uppercase"
+            }}>
+              {invoice.businessUnit?.name || "COMPANY NAME"}
+            </h1>
+            <p style={{ margin: "3px 0", fontWeight: "700" }}>
+              NTN: <span style={{ fontWeight: "400" }}>{invoice.businessUnit?.ntn}</span>
+            </p>
+            <p style={{ margin: "3px 0", fontWeight: "700" }}>
+              STRN: <span style={{ fontWeight: "400" }}>{invoice.businessUnit?.strn || "11-90-9999-329-55"}</span>
+            </p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px" }}>
+              PLOT No. F - 96, OFF HUB RIVER ROAD, SITE, Karachi West Site Town
+            </p>
+          </div>
+
+          {/* Right: SALES TAX INVOICE box — plain gray, no side border */}
+          <div style={{ minWidth: "130px", display: "flex", justifyContent: "flex-end", alignItems: "flex-end", paddingBottom: "0" }}>
+            <div style={{
+              backgroundColor: "#d0d0d0",
+              padding: "7px 14px",
+              marginTop: "auto"
+            }}>
+              <p style={{ fontWeight: "700", fontSize: "12px", margin: 0, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
+                SALES TAX INVOICE
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Info Blocks */}
-        <div className="flex justify-between mb-6">
-          <div className="w-1/2 pr-4 space-y-2">
-            <h2 className="font-bold text-lg">{DUMMY_INVOICE.buyer.name}</h2>
-            <p className="font-bold text-sm">NTN / CNIC: <span className="font-normal">{DUMMY_INVOICE.buyer.ntnCnic}</span></p>
-            <p className="text-xs max-w-sm uppercase">{DUMMY_INVOICE.buyer.address}</p>
+        {/* ── BUYER + META ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", margin: "14px 0 12px" }}>
+          {/* Buyer left */}
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: "700", fontSize: "14px", margin: "0 0 5px", textTransform: "uppercase" }}>
+              {invoice.party?.name || "BUYER NAME"}
+            </p>
+            <p style={{ fontWeight: "700", margin: "3px 0" }}>
+              NTN / CNIC: <span style={{ fontWeight: "400" }}>{invoice.party?.ntnOrCnic}</span>
+            </p>
+            <p style={{ textTransform: "uppercase", margin: "3px 0", fontSize: "11px", lineHeight: "1.5", maxWidth: "340px" }}>
+              {[invoice.partyAddress?.addressLine, invoice.partyAddress?.province].filter(Boolean).join(", ")}
+            </p>
           </div>
-          
-          <div className="w-1/2 pl-4 flex flex-col items-end space-y-2 text-sm">
-            <div className="grid grid-cols-2 gap-4 w-64">
-              <p className="font-bold">Invoice Date:</p>
-              <p>{DUMMY_INVOICE.date}</p>
-              
-              <p className="font-bold">Invoice Ref No:</p>
-              <p>{DUMMY_INVOICE.id}</p>
-            </div>
-            
-            <div className="w-64 pt-2">
-              <p className="font-bold">FBR Invoice No:</p>
-              <p className="font-bold text-xs break-all">{DUMMY_INVOICE.fbrInvoiceNo}</p>
-            </div>
+
+          {/* Invoice meta right */}
+          <div style={{ minWidth: "220px" }}>
+            <table style={{ borderSpacing: 0, marginLeft: "auto", fontSize: "12px" }}>
+              <tbody>
+                <tr>
+                  <td style={{ fontWeight: "700", paddingRight: "16px", paddingBottom: "4px" }}>Invoice Date:</td>
+                  <td style={{ paddingBottom: "4px" }}>{dt}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: "700", paddingRight: "16px", paddingBottom: "4px" }}>Invoice Ref No:</td>
+                  <td style={{ paddingBottom: "4px" }}>{ref}</td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: "700", paddingRight: "16px", verticalAlign: "top" }}>FBR Invoice No:</td>
+                  <td style={{ fontWeight: "700", fontSize: "11px", wordBreak: "break-all", maxWidth: "140px" }}>
+                    {invoice.fbrIrn || "N/A"}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Table */}
-        <table className="w-full text-xs text-center border-collapse border border-slate-900 mb-2">
-          <thead className="font-bold bg-slate-50">
-            <tr>
-              <th className="border border-slate-900 p-2 w-8">S.#</th>
-              <th className="border border-slate-900 p-2 text-left">Description</th>
-              <th className="border border-slate-900 p-2">HS Code</th>
-              <th className="border border-slate-900 p-2">UOM</th>
-              <th className="border border-slate-900 p-2">Qty</th>
-              <th className="border border-slate-900 p-2">Unit<br/>Price</th>
-              <th className="border border-slate-900 p-2">Value Excl.<br/>S/Tax</th>
-              <th className="border border-slate-900 p-2">Sales Tax<br/>((18.00%))</th>
-              <th className="border border-slate-900 p-2">Further<br/>Sales Tax<br/>((0.00%))</th>
-              <th className="border border-slate-900 p-2">Total</th>
+        {/* ── ITEMS TABLE ── */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "4px" }}>
+          <thead>
+            <tr style={{ backgroundColor: "#efefef" }}>
+              {[
+                { label: "S.#",                      w: "30px",  align: "center" },
+                { label: "Description",              w: "auto",  align: "left"   },
+                { label: "HS Code",                  w: "72px",  align: "center" },
+                { label: "UOM",                      w: "38px",  align: "center" },
+                { label: "Qty",                      w: "48px",  align: "center" },
+                { label: "Unit\nPrice",              w: "52px",  align: "center" },
+                { label: "Value Excl.\nS/Tax",       w: "72px",  align: "center" },
+                { label: "Sales Tax\n((18.00%))",    w: "72px",  align: "center" },
+                { label: "Further\nSales Tax\n((0.00%))", w: "60px", align: "center" },
+                { label: "Total",                    w: "76px",  align: "center" },
+              ].map((h, i) => (
+                <th key={i} style={{
+                  ...td({ backgroundColor: "#efefef", fontWeight: "700", textAlign: h.align as any,
+                         whiteSpace: "pre-line", lineHeight: "1.3", width: h.w, padding: "5px 4px" })
+                }}>
+                  {h.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {DUMMY_INVOICE.items.map((item, idx) => (
-              <tr key={idx}>
-                <td className="border border-slate-900 p-2">{item.sNo}</td>
-                <td className="border border-slate-900 p-2 text-left">{item.desc}</td>
-                <td className="border border-slate-900 p-2">{item.hsCode}</td>
-                <td className="border border-slate-900 p-2">{item.uom}</td>
-                <td className="border border-slate-900 p-2">{item.qty.toFixed(2)}</td>
-                <td className="border border-slate-900 p-2">{item.unitPrice.toFixed(2)}</td>
-                <td className="border border-slate-900 p-2">{item.valueExcl.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td className="border border-slate-900 p-2">{item.salesTaxAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td className="border border-slate-900 p-2">{item.furtherTaxAmount.toFixed(2)}</td>
-                <td className="border border-slate-900 p-2">{item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            {rows.map((r: any, i: number) => (
+              <tr key={i}>
+                <td style={td({ textAlign: "center" }) as any}>{i + 1}</td>
+                <td style={td({ textAlign: "left", textTransform: "uppercase" }) as any}>{r.item?.name || "ITEM"}</td>
+                <td style={td({ textAlign: "center" }) as any}>{r.hsCode}</td>
+                <td style={td({ textAlign: "center" }) as any}>{r.item?.uom || "EA"}</td>
+                <td style={td({ textAlign: "center" }) as any}>{r.qty.toFixed(2)}</td>
+                <td style={td({ textAlign: "right" }) as any}>{r.rate.toFixed(2)}</td>
+                <td style={td({ textAlign: "right" }) as any}>{f(r.excl)}</td>
+                <td style={td({ textAlign: "right" }) as any}>{f(r.stax)}</td>
+                <td style={td({ textAlign: "center" }) as any}>0.00</td>
+                <td style={td({ textAlign: "right" }) as any}>{f(r.total)}</td>
               </tr>
             ))}
-            {/* Empty space filler */}
-            <tr>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-              <td className="border-x border-slate-900 p-2 h-32"></td>
-            </tr>
+
+            {/* blank rows to fill space like in PDF */}
+            {Array.from({ length: Math.max(0, 3 - rows.length) }).map((_, i) => (
+              <tr key={`blank-${i}`} style={{ height: "28px" }}>
+                {Array(10).fill(null).map((__, j) => (
+                  <td key={j} style={td() as any}></td>
+                ))}
+              </tr>
+            ))}
+
             {/* Totals */}
-            <tr className="font-bold">
-              <td colSpan={4} className="border border-slate-900 p-2 text-right">TOTALS:</td>
-              <td className="border border-slate-900 p-2">{DUMMY_INVOICE.items.reduce((a,b)=>a+b.qty,0).toFixed(2)}</td>
-              <td className="border border-slate-900 p-2"></td>
-              <td className="border border-slate-900 p-2">{totalValueExcl.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-              <td className="border border-slate-900 p-2">{totalSalesTax.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-              <td className="border border-slate-900 p-2">{totalFurtherTax.toFixed(2)}</td>
-              <td className="border border-slate-900 p-2">{grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <tr style={{ fontWeight: "700", backgroundColor: "#fafafa" }}>
+              <td colSpan={4} style={td({ textAlign: "right" }) as any}>TOTALS:</td>
+              <td style={td({ textAlign: "center" }) as any}>{totQty.toFixed(2)}</td>
+              <td style={td() as any}></td>
+              <td style={td({ textAlign: "right" }) as any}>{f(totExcl)}</td>
+              <td style={td({ textAlign: "right" }) as any}>{f(totStax)}</td>
+              <td style={td({ textAlign: "center" }) as any}>0.00</td>
+              <td style={td({ textAlign: "right" }) as any}>{f(grand)}</td>
             </tr>
           </tbody>
         </table>
 
-        {/* Footer Top */}
-        <div className="mt-8 flex justify-between items-start">
-          <div className="w-1/2 pr-8">
-            <p className="text-sm font-medium mb-4">Remarks:</p>
-            <p className="font-bold text-sm mb-2">FBR Invoice Number: {DUMMY_INVOICE.fbrInvoiceNo}</p>
-            <div className="flex items-center gap-4 mt-4">
-              <div className="border p-2 w-32 flex flex-col items-center justify-center">
-                <span className="text-blue-700 font-bold italic text-lg">FBR</span>
-                <span className="bg-blue-700 text-white text-xs font-bold px-2 py-0.5">DIGITAL</span>
-                <span className="text-[6px] mt-0.5 font-bold">INVOICING SYSTEM</span>
-              </div>
-              <div className="border p-1 border-slate-300">
-                <QRCodeSVG value={DUMMY_INVOICE.fbrInvoiceNo} size={80} level="M" />
+        {/* ── FOOTER SECTION ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: "18px" }}>
+
+          {/* Left: Remarks + FBR + QR */}
+          <div style={{ flex: 1, paddingRight: "30px" }}>
+            <p style={{ margin: "0 0 6px" }}>Remarks:</p>
+            <p style={{ fontWeight: "700", margin: "0 0 14px", fontSize: "11.5px" }}>
+              FBR Invoice Number: {invoice.fbrIrn || "N/A"}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              {/* Real FBR logo image */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/fbr-logo.png" alt="FBR Digital Invoicing System"
+                style={{ width: "80px", height: "80px", objectFit: "contain" }} />
+              {/* QR Code */}
+              <div style={{ border: "1px solid #ccc", padding: "4px", background: "#fff" }}>
+                <QRCodeSVG value={invoice.fbrIrn || invoice.id} size={72} level="M" />
               </div>
             </div>
           </div>
-          
-          <div className="w-1/2 pl-8 space-y-4 text-sm mt-4">
-            <div className="flex justify-between border-b pb-2">
+
+          {/* Right: value summary */}
+          <div style={{ minWidth: "230px", fontSize: "13px", marginTop: "34px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #ccc", paddingBottom: "6px", marginBottom: "6px" }}>
               <span>Value Including Sales Tax</span>
-              <span className="font-medium">{grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+              <span>{f(grand)}</span>
             </div>
-            <div className="flex justify-between border-b border-black pb-2">
+            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #000", paddingBottom: "6px", marginBottom: "6px" }}>
               <span>W.H.T. 236G (0.10%)</span>
-              <span className="font-medium">{whtAmount.toFixed(2)}</span>
+              <span>{f(wht)}</span>
             </div>
-            <div className="flex justify-between pt-1">
-              <span className="font-bold text-lg">Total Invoice Value</span>
-              <span className="font-bold text-lg">{finalInvoiceValue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: "700", fontSize: "15px" }}>Total Invoice Value</span>
+              <span style={{ fontWeight: "700", fontSize: "15px" }}>{f(final_)}</span>
             </div>
           </div>
         </div>
 
-        {/* Footer Bottom */}
-        <div className="mt-12 bg-slate-50 p-4 border border-slate-100 text-xs">
-          <span className="font-bold">Amount in Words:</span> TWO HUNDRED AND THIRTY-TWO THOUSAND THREE HUNDRED AND EIGHTY-TWO RUPEES AND NINE PAISE ONLY
+        {/* Amount in Words */}
+        <div style={{
+          marginTop: "22px",
+          backgroundColor: "#f0f0f0",
+          border: "1px solid #ddd",
+          padding: "8px 12px",
+          fontSize: "11px",
+          lineHeight: "1.5"
+        }}>
+          <strong>Amount in Words:</strong> {words}
         </div>
-        
-        <p className="text-center text-xs text-slate-500 mt-8 pb-4">
+
+        {/* Footer note */}
+        <p style={{ textAlign: "center", fontSize: "10px", color: "#333", marginTop: "22px", marginBottom: "0" }}>
           This is a computer-generated FBR Digital Invoice and does not require any signature and/or stamp.
         </p>
 
       </div>
-    </div>
+    </>
   );
 }

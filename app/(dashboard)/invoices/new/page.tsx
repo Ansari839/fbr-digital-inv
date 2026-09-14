@@ -91,6 +91,7 @@ export default function NewInvoicePage() {
   // Full FBR Payload State
   const [invoiceType, setInvoiceType] = useState('Sale Invoice');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [applyWht, setApplyWht] = useState(true);
   
   // Seller (Pre-filled as approved)
   const [sellerNTNCNIC] = useState('7654321');
@@ -364,7 +365,8 @@ export default function NewInvoicePage() {
           buyerProvince,
           buyerAddress,
           forceIssueReason,
-          items
+          items,
+          applyWht
         })
       });
 
@@ -373,7 +375,7 @@ export default function NewInvoicePage() {
         showMessage('success', 'Success', 'Invoice created and simulated FBR sync successfully!');
         // Small delay so user can see success before redirect
         setTimeout(() => {
-          router.push(`/invoices/${data.invoice.id}`);
+          window.open(`/api/invoices/${data.invoice.id}/pdf`, '_blank');
         }, 1500);
       } else {
         setIsSubmitting(false);
@@ -754,6 +756,13 @@ export default function NewInvoicePage() {
             <div className="space-y-2">
               <Label htmlFor="invoiceDate">Invoice Date</Label>
               <Input id="invoiceDate" type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+            </div>
+            <div className="space-y-2 flex items-center justify-between border rounded-md p-3 bg-slate-50 md:col-span-2 border-slate-200">
+              <div>
+                <Label className="text-sm font-semibold cursor-pointer" onClick={() => setApplyWht(!applyWht)}>Apply W.H.T. 236G (0.10%)</Label>
+                <p className="text-xs text-slate-500">Enable this to apply Withholding Tax on the final invoice PDF.</p>
+              </div>
+              <input type="checkbox" checked={applyWht} onChange={(e) => setApplyWht(e.target.checked)} className="h-5 w-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer" />
             </div>
           </CardContent>
         </Card>
