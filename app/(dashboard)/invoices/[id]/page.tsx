@@ -101,22 +101,22 @@ export default function ViewInvoicePage() {
         </div>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="bg-[var(--primary)] text-white">
+          <DropdownMenuTrigger>
+            <div className="bg-[var(--primary)] text-white inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 cursor-pointer">
               <Printer className="h-4 w-4 mr-2" />
               Print / Save PDF
-            </Button>
+            </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Print Options</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem>
               <Link href={`/invoices/${id}/print`} className="cursor-pointer w-full">
                 FBR Default (A4 PDF)
               </Link>
             </DropdownMenuItem>
             
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem>
               <Link href={isPremium ? `/invoices/${id}/builder` : `/settings/premium`} className="cursor-pointer w-full flex justify-between items-center">
                 <span>Custom Builder</span>
                 {isPremium ? (
