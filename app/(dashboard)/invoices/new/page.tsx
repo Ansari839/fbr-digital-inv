@@ -10,8 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FileText, Play, Save, Plus, Trash2, AlertCircle, Loader2, CheckSquare, Search } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
 
 export default function NewInvoicePage() {
+  const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -343,7 +345,7 @@ export default function NewInvoicePage() {
     }, 1000);
   };
 
-  const proceedWithPost = () => {
+  const proceedWithPost = async () => {
     setIsSubmitting(true);
     setShowDuplicateWarning(false);
     const payload = generateFbrPayload();
@@ -351,16 +353,36 @@ export default function NewInvoicePage() {
       (payload as any).forceIssueReason = forceIssueReason.trim();
     }
     
-    // Simulate API request to FBR
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload,
+          buyerNTNCNIC,
+          buyerBusinessName,
+          buyerProvince,
+          buyerAddress,
+          forceIssueReason,
+          items
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showMessage('success', 'Success', 'Invoice created and simulated FBR sync successfully!');
+        // Small delay so user can see success before redirect
+        setTimeout(() => {
+          router.push(`/invoices/${data.invoice.id}`);
+        }, 1500);
+      } else {
+        setIsSubmitting(false);
+        showMessage('error', 'Error', data.error || 'Failed to save invoice');
+      }
+    } catch (e) {
       setIsSubmitting(false);
-      showMessage(
-        'info',
-        'Post to FBR',
-        'This action will post the following payload to FBR APIs. (Simulation)',
-        payload
-      );
-    }, 1500);
+      showMessage('error', 'Error', 'Failed to connect to the server');
+    }
   };
 
   const handlePostToFBR = async () => {
