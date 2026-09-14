@@ -196,7 +196,7 @@ export default function ItemsPage() {
     <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6 relative">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Package className="h-8 w-8 text-[#1a7368]" />
+          <Package className="h-8 w-8 text-[var(--primary)]" />
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Items & Stock</h1>
             <p className="text-sm text-slate-500">Manage your inventory, pricing, and HS Codes</p>
@@ -219,7 +219,7 @@ export default function ItemsPage() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               disabled={isUploading}
             />
-            <Button className="bg-[#1a7368] hover:bg-[#155b52] text-white shadow-sm w-full">
+            <Button className="bg-[var(--primary)] hover:opacity-90 text-white shadow-sm w-full">
               {isUploading ? <Loader text="" /> : <UploadCloud className="h-4 w-4 mr-2" />}
               {isUploading ? 'Uploading...' : 'Bulk Import'}
             </Button>
@@ -244,7 +244,7 @@ export default function ItemsPage() {
                     onClick={() => setItemType('Physical')}
                     className={`px-6 py-2 text-sm font-medium rounded-md transition-all ${
                       itemType === 'Physical' 
-                        ? 'bg-white shadow-sm text-[#1a7368] ring-1 ring-slate-200/50' 
+                        ? 'bg-white shadow-sm text-[var(--primary)] ring-1 ring-slate-200/50' 
                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                     }`}
                   >
@@ -255,7 +255,7 @@ export default function ItemsPage() {
                     onClick={() => setItemType('Service')}
                     className={`px-6 py-2 text-sm font-medium rounded-md transition-all ${
                       itemType === 'Service' 
-                        ? 'bg-white shadow-sm text-[#1a7368] ring-1 ring-slate-200/50' 
+                        ? 'bg-white shadow-sm text-[var(--primary)] ring-1 ring-slate-200/50' 
                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                     }`}
                   >
@@ -272,7 +272,7 @@ export default function ItemsPage() {
                     type="text" 
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                    className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                     placeholder="e.g. Polyester Yarn" 
                   />
                 </div>
@@ -282,7 +282,7 @@ export default function ItemsPage() {
                     type="text" 
                     value={internalName}
                     onChange={e => setInternalName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                    className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                     placeholder="e.g. DEN FDY DTY" 
                   />
                 </div>
@@ -321,7 +321,7 @@ export default function ItemsPage() {
                       type="number" 
                       value={defaultRate}
                       onChange={e => setDefaultRate(e.target.value)}
-                      className="w-full h-10 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                      className="w-full h-10 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                       placeholder="0.00" 
                     />
                   </div>
@@ -334,7 +334,7 @@ export default function ItemsPage() {
                       type="number" 
                       value={taxRate}
                       onChange={e => setTaxRate(e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                      className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                       placeholder="e.g. 18" 
                     />
                     <span className="absolute right-3 top-2.5 text-slate-400 text-sm">%</span>
@@ -347,7 +347,7 @@ export default function ItemsPage() {
                 <select 
                   value={saleType}
                   onChange={e => setSaleType(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
                 >
                   <option value="Goods at standard rate (default)">Goods at standard rate (18%)</option>
                   <option value="Goods at Reduced Rate">Goods at Reduced Rate</option>
@@ -359,7 +359,7 @@ export default function ItemsPage() {
               </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Button disabled={isSubmitting} type="submit" className="bg-[#1a7368] hover:bg-[#155b52] text-white">
+                  <Button disabled={isSubmitting} type="submit" className="bg-[var(--primary)] hover:opacity-90 text-white">
                     {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     {selectedItemId ? 'Update' : 'Save'} Item
                   </Button>
@@ -384,7 +384,7 @@ export default function ItemsPage() {
                 placeholder="Search by name or HS Code..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
               />
             </div>
           </CardHeader>
@@ -409,7 +409,7 @@ export default function ItemsPage() {
                     <tr 
                       key={item.id} 
                       onClick={() => handleRowClick(item)}
-                      className={`transition-colors cursor-pointer ${selectedItemId === item.id ? 'bg-[#1a7368]/10' : 'hover:bg-slate-50'}`}
+                      className={`transition-colors cursor-pointer ${selectedItemId === item.id ? 'bg-[var(--primary)]/10' : 'hover:bg-slate-50'}`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">

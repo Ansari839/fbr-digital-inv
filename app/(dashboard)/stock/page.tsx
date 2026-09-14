@@ -90,7 +90,7 @@ export default function StockReportPage() {
                   min="1"
                   value={stockAddQty}
                   onChange={e => setStockAddQty(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]" 
+                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" 
                   placeholder="e.g. 50" 
                 />
               </div>
@@ -100,13 +100,13 @@ export default function StockReportPage() {
                   type="text" 
                   value={stockRef}
                   onChange={e => setStockRef(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]" 
+                  className="w-full h-10 px-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]" 
                   placeholder="e.g. INV-1234" 
                 />
               </div>
               <div className="flex gap-3 justify-end pt-2">
                 <Button variant="outline" onClick={() => setStockModalItem(null)}>Cancel</Button>
-                <Button onClick={handleStockIn} disabled={isAddingStock || !stockAddQty} className="bg-[#1a7368] hover:bg-[#155b52] text-white">
+                <Button onClick={handleStockIn} disabled={isAddingStock || !stockAddQty} className="bg-[var(--primary)] hover:opacity-90 text-white">
                   {isAddingStock ? 'Saving...' : 'Confirm Stock IN'}
                 </Button>
               </div>
@@ -167,7 +167,7 @@ export default function StockReportPage() {
       )}
 
       <div className="flex items-center gap-3">
-        <Archive className="h-8 w-8 text-[#1a7368]" />
+        <Archive className="h-8 w-8 text-[var(--primary)]" />
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Stock Report</h1>
           <p className="text-sm text-slate-500">Manage internal inventory and stock additions</p>
@@ -184,7 +184,7 @@ export default function StockReportPage() {
               placeholder="Search by name or variant..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+              className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
             />
           </div>
         </CardHeader>
@@ -232,7 +232,7 @@ export default function StockReportPage() {
                         <Button onClick={() => setHistoryModalItem(item)} size="sm" variant="outline" className="h-8">
                           History
                         </Button>
-                        <Button onClick={() => setStockModalItem(item)} size="sm" variant="outline" className="h-8 text-[#1a7368] border-[#1a7368]/30 hover:bg-[#1a7368]/5">
+                        <Button onClick={() => setStockModalItem(item)} size="sm" variant="outline" className="h-8 text-[var(--primary)] border-[var(--primary)]/30 hover:bg-[var(--primary)]/5">
                           <ArrowUpCircle className="h-4 w-4 mr-1.5" />
                           Stock IN
                         </Button>

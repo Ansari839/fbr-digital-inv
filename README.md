@@ -1,6 +1,6 @@
-# Xelent Invoice (FBR Digital Invoicing)
+# FBR SyncPro (FBR Digital Invoicing)
 
-Xelent Invoice is a powerful, Next.js based application designed to seamlessly integrate with the Pakistan Federal Board of Revenue (FBR) Digital Invoicing system (IRIS). It allows businesses to manage inventory, customers, and stock, while generating FBR-compliant invoices in real-time.
+FBR SyncPro is a powerful, Next.js based application designed to seamlessly integrate with the Pakistan Federal Board of Revenue (FBR) Digital Invoicing system (IRIS). It allows businesses to manage inventory, customers, and stock, while generating FBR-compliant invoices in real-time.
 
 ## 🚀 Key Features
 
@@ -25,6 +25,12 @@ Xelent Invoice is a powerful, Next.js based application designed to seamlessly i
 ### 5. ☁️ Bulk Excel Uploads
 - APIs to download pre-formatted Excel templates (with sample data) for Invoices, Customers, and Items.
 - Built-in parsing engine designed to dynamically group multi-item invoices by `InvoiceNo` and validate taxation math.
+
+### 6. 🎨 Dynamic Theme Settings
+- **Customizable Brand Colors**: Configure your business profile and switch the entire application's theme instantly using CSS Variables without hardcoded Tailwind classes.
+
+### 7. 🗓️ Holiday Validation Engine
+- **Sunday Blockers & Gazetted Holidays**: Live integration with Google Calendar `basic.ics` feeds. Validates invoice issuance dates to prevent backdating on Sundays or official holidays without a mandatory logged reason.
 
 ## 🛠️ Technology Stack
 - **Framework**: Next.js 15+ (App Router)

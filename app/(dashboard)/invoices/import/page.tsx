@@ -74,7 +74,7 @@ export default function ImportInvoicePage() {
           <p className="text-sm text-slate-500 mt-1">Upload an Excel file to bulk generate and transmit FBR JSON payloads</p>
         </div>
         <Button onClick={handleDownloadTemplate} variant="outline" className="h-9 border-slate-200 text-slate-700 bg-white shadow-sm">
-          <FileDown className="h-4 w-4 mr-2 text-[#1a7368]" />
+          <FileDown className="h-4 w-4 mr-2 text-[var(--primary)]" />
           Download Sample Template
         </Button>
       </div>
@@ -112,7 +112,7 @@ export default function ImportInvoicePage() {
               <Button 
                 onClick={handleUpload} 
                 disabled={isUploading}
-                className="mt-6 bg-[#1a7368] hover:bg-[#155b52] text-white px-8"
+                className="mt-6 bg-[var(--primary)] hover:opacity-90 text-white px-8"
               >
                 {isUploading ? (
                   <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Processing...</>

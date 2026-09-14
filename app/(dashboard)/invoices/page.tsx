@@ -104,7 +104,7 @@ export default function InvoicesListPage() {
           <p className="text-slate-500 mt-1">Manage and view all your issued invoices</p>
         </div>
         <Link href="/invoices/new">
-          <Button className="bg-[#1a7368] hover:bg-[#155b52]">
+          <Button className="bg-[var(--primary)] hover:opacity-90">
             <Plus className="mr-2 h-4 w-4" />
             Create Invoice
           </Button>
@@ -129,7 +129,7 @@ export default function InvoicesListPage() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-48 text-center">
-                    <Loader2 className="h-6 w-6 text-[#1a7368] animate-spin mx-auto mb-2" />
+                    <Loader2 className="h-6 w-6 text-[var(--primary)] animate-spin mx-auto mb-2" />
                     <p className="text-slate-500 text-sm">Loading invoices...</p>
                   </TableCell>
                 </TableRow>
@@ -169,9 +169,11 @@ export default function InvoicesListPage() {
                       <InvoiceTimer fbrTimestamp={inv.fbrTimestamp} />
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <Link href={`/invoices/${inv.id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-[var(--primary)] hover:bg-slate-100">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))

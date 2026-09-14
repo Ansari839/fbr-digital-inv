@@ -16,6 +16,13 @@ export default function NewInvoicePage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   
+  // Holiday & Date Restriction State
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayAlertMessage, setHolidayAlertMessage] = useState('');
+  const [forceIssueReason, setForceIssueReason] = useState('');
+  const [pendingAction, setPendingAction] = useState<'dryRun' | 'post' | null>(null);
+  
   // Add Customer Modal State
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
@@ -59,9 +66,20 @@ export default function NewInvoicePage() {
     }
   };
 
+  const fetchHolidays = async () => {
+    try {
+      const res = await fetch('/api/holidays');
+      const data = await res.json();
+      if (Array.isArray(data)) setHolidays(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     fetchCustomers();
     fetchInventoryItems();
+    fetchHolidays();
   }, []);
 
   // Full FBR Payload State
@@ -240,6 +258,34 @@ export default function NewInvoicePage() {
     };
   };
 
+  const validateInvoiceDate = (inputDate: string, cachedHolidays: any[], forceIssue = false, forceReason = '') => {
+    const dateObj = new Date(inputDate);
+    const dayOfWeek = dateObj.getDay(); 
+
+    if (dayOfWeek === 0) {
+      if (!forceIssue) {
+        return { allowed: false, message: "Warning: Selected date is a Sunday. Invoicing on Sundays requires a valid reason." };
+      }
+      if (forceIssue && (!forceReason || forceReason.trim().length < 5)) {
+        return { allowed: false, message: "Please enter a valid reason (min 5 characters) to force issue on a Sunday." };
+      }
+      return { allowed: true };
+    }
+
+    const matchedHoliday = cachedHolidays.find(h => h.date === inputDate);
+    if (matchedHoliday) {
+        if (!forceIssue) {
+            return { allowed: false, message: `Alert: Selected date is an official gazetted holiday (${matchedHoliday.name}).` };
+        }
+        if (forceIssue && (!forceReason || forceReason.trim().length < 5)) {
+            return { allowed: false, message: "Please enter a valid reason (min 5 characters) to force issue on an official holiday." };
+        }
+        return { allowed: true };
+    }
+
+    return { allowed: true };
+  };
+
   const handleDryRunVerify = () => {
     // Validations
     if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
@@ -261,9 +307,21 @@ export default function NewInvoicePage() {
       return;
     }
 
+    // Holiday & Sunday Validation Engine
+    const validation = validateInvoiceDate(invoiceDate, holidays, forceIssueReason.trim().length >= 5, forceIssueReason);
+    if (!validation.allowed) {
+      setHolidayAlertMessage(validation.message || '');
+      setPendingAction('dryRun');
+      setShowHolidayModal(true);
+      return;
+    }
+
     setIsVerifying(true);
     
     const payload = generateFbrPayload();
+    if (forceIssueReason.trim().length >= 5) {
+      (payload as any).forceIssueReason = forceIssueReason.trim(); // Just append it to payload for visual testing
+    }
     
     setTimeout(() => {
       setIsVerifying(false);
@@ -291,7 +349,20 @@ export default function NewInvoicePage() {
       showMessage('error', 'Validation Error', "Please add at least one line item before posting.");
       return;
     }
+    
+    // Holiday & Sunday Validation Engine
+    const validation = validateInvoiceDate(invoiceDate, holidays, forceIssueReason.trim().length >= 5, forceIssueReason);
+    if (!validation.allowed) {
+      setHolidayAlertMessage(validation.message || '');
+      setPendingAction('post');
+      setShowHolidayModal(true);
+      return;
+    }
+
     const payload = generateFbrPayload();
+    if (forceIssueReason.trim().length >= 5) {
+      (payload as any).forceIssueReason = forceIssueReason.trim();
+    }
     showMessage(
       'info',
       'Post to FBR',
@@ -351,13 +422,49 @@ export default function NewInvoicePage() {
         </div>
       )}
 
+      {/* Holiday / Date Override Modal */}
+      {showHolidayModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[55] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-amber-500 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Date Restriction Warning
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">{holidayAlertMessage}</p>
+            <div className="space-y-2">
+              <Label>Reason for Force Issue</Label>
+              <Input 
+                placeholder="Enter valid reason (min 5 characters)..." 
+                value={forceIssueReason}
+                onChange={e => setForceIssueReason(e.target.value)}
+                className="focus:ring-amber-500/20 focus:border-amber-500"
+              />
+            </div>
+            <div className="flex gap-3 justify-end pt-4">
+              <Button variant="outline" onClick={() => {
+                setShowHolidayModal(false);
+                setPendingAction(null);
+                setForceIssueReason(''); // Reset if they cancel
+              }}>Cancel</Button>
+              <Button onClick={() => {
+                setShowHolidayModal(false);
+                if (pendingAction === 'dryRun') handleDryRunVerify();
+                if (pendingAction === 'post') handlePostToFBR();
+              }} disabled={forceIssueReason.trim().length < 5} className="bg-amber-500 hover:bg-amber-600 text-white">
+                Proceed Anyway
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Item Picker Modal */}
       {showItemPicker && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-[#1a7368]" />
+                <CheckSquare className="h-5 w-5 text-[var(--primary)]" />
                 Select Items to Add
               </h3>
             </div>
@@ -369,7 +476,7 @@ export default function NewInvoicePage() {
                 placeholder="Search by name or HS Code..."
                 value={itemSearchQuery}
                 onChange={e => setItemSearchQuery(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
               />
             </div>
 
@@ -396,7 +503,7 @@ export default function NewInvoicePage() {
                         }}
                       >
                         <td className="px-4 py-2">
-                          <input type="checkbox" checked={isSelected} readOnly className="h-4 w-4 text-[#1a7368] rounded border-slate-300 focus:ring-[#1a7368]" />
+                          <input type="checkbox" checked={isSelected} readOnly className="h-4 w-4 text-[var(--primary)] rounded border-slate-300 focus:ring-[var(--primary)]" />
                         </td>
                         <td className="px-4 py-2">
                           <div className="font-medium text-slate-900">{item.name} {item.internalName ? `(${item.internalName})` : ''}</div>
@@ -417,7 +524,7 @@ export default function NewInvoicePage() {
             
             <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
               <Button variant="outline" onClick={() => setShowItemPicker(false)}>Cancel</Button>
-              <Button onClick={confirmItemSelection} disabled={selectedItemsFromPicker.length === 0} className="bg-[#1a7368] hover:bg-[#155b52] text-white">
+              <Button onClick={confirmItemSelection} disabled={selectedItemsFromPicker.length === 0} className="bg-[var(--primary)] hover:opacity-90 text-white">
                 Add {selectedItemsFromPicker.length} Items
               </Button>
             </div>
@@ -605,7 +712,7 @@ export default function NewInvoicePage() {
         <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-visible">
           <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl">
             <CardTitle className="text-lg font-semibold text-slate-800">4. Line Items</CardTitle>
-            <Button onClick={openItemPicker} variant="outline" size="sm" className="h-8 border-[#1a7368]/30 text-[#1a7368] bg-emerald-50 hover:bg-emerald-100">
+            <Button onClick={openItemPicker} variant="outline" size="sm" className="h-8 border-[var(--primary)]/30 text-[var(--primary)] bg-emerald-50 hover:bg-emerald-100">
               <Plus className="mr-1 h-3 w-3" /> Select Items
             </Button>
           </CardHeader>
@@ -662,7 +769,7 @@ export default function NewInvoicePage() {
                               min="1"
                               value={item.quantity || ''} 
                               onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} 
-                              className="h-9 text-sm focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                              className="h-9 text-sm focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                             />
                             <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center justify-between border ${isNegative ? 'bg-red-50 border-red-200 text-red-700 font-medium' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
                               <span>Stock: {currentStock}</span>
@@ -675,7 +782,7 @@ export default function NewInvoicePage() {
                             type="number" 
                             value={item.rate || ''} 
                             onChange={(e) => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} 
-                            className="h-9 text-sm focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                            className="h-9 text-sm focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
                           />
                         </TableCell>
                         <TableCell className="pt-4 text-right font-medium text-slate-700">
@@ -685,7 +792,7 @@ export default function NewInvoicePage() {
                           <div className="text-sm font-medium text-slate-700">{taxAmount.toLocaleString()}</div>
                           <div className="text-[10px] text-slate-400">@{taxRate}%</div>
                         </TableCell>
-                        <TableCell className="pt-4 text-right font-bold text-[#1a7368]">
+                        <TableCell className="pt-4 text-right font-bold text-[var(--primary)]">
                           {totalValue.toLocaleString()}
                         </TableCell>
                         <TableCell className="pt-3 text-right">

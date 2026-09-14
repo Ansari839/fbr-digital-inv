@@ -26,7 +26,7 @@ export default function DashboardPage() {
       {/* Top Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Xelent Invoice</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">FBR SyncPro</h1>
           <p className="text-sm text-slate-500 mt-1">Welcome to your <span className="font-semibold text-slate-700">FBR Digital Invoicing</span> portal</p>
         </div>
         
@@ -39,7 +39,7 @@ export default function DashboardPage() {
             <span className="text-sm text-slate-600 font-medium">To Date:</span>
             <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 w-40 text-sm bg-white" />
           </div>
-          <Button className="h-9 px-6 bg-[#1a7368] hover:bg-[#155b52] text-white">Filter</Button>
+          <Button className="h-9 px-6 bg-[var(--primary)] hover:opacity-90 text-white">Filter</Button>
         </div>
       </div>
 
@@ -161,7 +161,7 @@ export default function DashboardPage() {
               <span className="text-xs text-slate-500 font-medium mb-1">To Month</span>
               <Input type="month" value="2025-09" readOnly className="h-9 text-xs bg-white w-[130px] rounded-md shadow-sm border-slate-200" />
             </div>
-            <Button className="h-9 px-4 bg-[#1a7368] hover:bg-[#155b52] text-white text-xs shadow-sm rounded-md">Filter</Button>
+            <Button className="h-9 px-4 bg-[var(--primary)] hover:opacity-90 text-white text-xs shadow-sm rounded-md">Filter</Button>
           </div>
           
           <Card className="bg-white border-slate-200 shadow-sm rounded-xl p-5 flex-1 min-h-[380px] w-full flex flex-col">
@@ -187,7 +187,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-end mb-4">
             <h2 className="text-[1.15rem] font-bold text-slate-800 tracking-tight leading-9">Recent Invoices</h2>
             <Link href="/invoices/new">
-              <Button className="h-9 bg-[#1a7368] hover:bg-[#155b52] text-white text-xs shadow-sm rounded-md px-5">
+              <Button className="h-9 bg-[var(--primary)] hover:opacity-90 text-white text-xs shadow-sm rounded-md px-5">
                 Add Invoice
               </Button>
             </Link>

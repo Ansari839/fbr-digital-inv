@@ -128,3 +128,16 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: A4;
+  }
+  body, html {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+  /* The layout wrapper, sidebar, and fixed elements are hidden using Tailwind's print:hidden class where necessary */
+}

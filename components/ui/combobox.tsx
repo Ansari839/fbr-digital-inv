@@ -48,7 +48,7 @@ export function Combobox({ options, value, onChange, onAdd, placeholder }: Combo
             onChange(e.target.value); // optimistic
           }}
           onFocus={() => setIsOpen(true)}
-          className="w-full h-10 px-3 pr-8 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+          className="w-full h-10 px-3 pr-8 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
           placeholder={placeholder}
         />
         <ChevronDown className="absolute right-2 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -79,7 +79,7 @@ export function Combobox({ options, value, onChange, onAdd, placeholder }: Combo
           
           {onAdd && query && !options.find(o => o.value.toLowerCase() === query.toLowerCase()) && (
             <div 
-              className="border-t border-slate-100 px-3 py-2 text-sm text-[#1a7368] font-medium hover:bg-slate-50 cursor-pointer flex items-center bg-emerald-50/50 transition-colors"
+              className="border-t border-slate-100 px-3 py-2 text-sm text-[var(--primary)] font-medium hover:bg-slate-50 cursor-pointer flex items-center bg-emerald-50/50 transition-colors"
               onClick={() => {
                 onAdd(query);
                 onChange(query);

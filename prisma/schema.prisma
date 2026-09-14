@@ -67,6 +67,7 @@ model Invoice {
   fbrTimestamp     DateTime?
   status           String
   totalAmount      Decimal
+  forceIssueReason String?
   createdAt        DateTime @default(now())
   businessUnit     BusinessUnit @relation(fields: [businessUnitId], references: [id])
   party            Party @relation(fields: [partyId], references: [id])
@@ -133,3 +134,10 @@ model StockTransaction {
   item        Item     @relation(fields: [itemId], references: [id])
 }
 
+model Holiday {
+  id          String   @id @default(cuid())
+  date        String   @unique // Format: YYYY-MM-DD
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+}

@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 import { Sidebar } from "@/components/layout/sidebar";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,19 +22,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="font-sans h-full flex overflow-hidden bg-[#f4f7f6] text-slate-800">
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-          
-          {/* Fixed Footer */}
-          <footer className="bg-white border-t border-slate-200/60 py-3 px-6 flex flex-col items-center justify-center text-center shadow-[0_-2px_10px_rgba(0,0,0,0.02)] shrink-0 z-10">
-            <p className="text-xs text-slate-500 font-medium">
-              Developed by <span className="font-bold text-[#1a7368]">MS Techs</span>
-            </p>
-          </footer>
-        </div>
+        <ThemeProvider>
+          <Sidebar />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <main className="flex-1 overflow-y-auto">
+              {children}
+            </main>
+            
+            {/* Fixed Footer */}
+            <footer className="bg-white border-t border-slate-200/60 py-3 px-6 flex flex-col items-center justify-center text-center shadow-[0_-2px_10px_rgba(0,0,0,0.02)] shrink-0 z-10">
+              <p className="text-xs text-slate-500 font-medium">
+                Developed by <span className="font-bold text-[var(--primary)]">MS Techs</span>
+              </p>
+            </footer>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
