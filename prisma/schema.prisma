@@ -46,10 +46,15 @@ model Item {
   hsCode         String
   uom            String
   name           String
+  internalName   String?
   defaultRate    Decimal
   stockQty       Decimal  @default(0)
+  itemType       String   @default("Physical")
+  taxRate        Decimal  @default(18)
+  saleType       String   @default("Goods at standard rate (default)")
   businessUnit   BusinessUnit @relation(fields: [businessUnitId], references: [id])
   invoiceItems   InvoiceLineItem[]
+  stockTransactions StockTransaction[]
 }
 
 model Invoice {
@@ -115,5 +120,16 @@ model Uom {
   description String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model StockTransaction {
+  id          String   @id @default(cuid())
+  itemId      String
+  type        String   // "IN" or "OUT"
+  quantity    Decimal
+  reference   String?  // e.g., INV REF
+  notes       String?
+  createdAt   DateTime @default(now())
+  item        Item     @relation(fields: [itemId], references: [id])
 }
 

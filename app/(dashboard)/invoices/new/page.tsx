@@ -1,17 +1,68 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Play, Save, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { FileText, Play, Save, Plus, Trash2, AlertCircle, Loader2, CheckSquare, Search } from 'lucide-react';
+import { Combobox } from '@/components/ui/combobox';
+import { Badge } from '@/components/ui/badge';
 
 export default function NewInvoicePage() {
   const [isVerifying, setIsVerifying] = useState(false);
-  const is24HrOfflineBlocked = false; 
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  
+  // Add Customer Modal State
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({ name: '', ntnOrCnic: '', isRegistered: true, province: '', address: '' });
+
+  // Custom Message Modal State
+  const [messageModal, setMessageModal] = useState<{show: boolean, type: 'success' | 'error' | 'info', title: string, message: string, payload?: string}>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
+
+  const showMessage = (type: 'success' | 'error' | 'info', title: string, message: string, payload?: any) => {
+    setMessageModal({
+      show: true,
+      type,
+      title,
+      message,
+      payload: payload ? JSON.stringify(payload, null, 2) : undefined
+    });
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await fetch('/api/customers');
+      const data = await res.json();
+      if (Array.isArray(data)) setCustomers(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchInventoryItems = async () => {
+    try {
+      const res = await fetch('/api/items');
+      const data = await res.json();
+      if (Array.isArray(data)) setInventoryItems(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+    fetchInventoryItems();
+  }, []);
 
   // Full FBR Payload State
   const [invoiceType, setInvoiceType] = useState('Sale Invoice');
@@ -29,24 +80,35 @@ export default function NewInvoicePage() {
   const [buyerBusinessName, setBuyerBusinessName] = useState('');
   const [buyerProvince, setBuyerProvince] = useState('Sindh');
   const [buyerAddress, setBuyerAddress] = useState('');
+  const [ntnNotFound, setNtnNotFound] = useState(false);
 
-  // Items
-  const [items, setItems] = useState([
-    {
-      hsCode: '',
-      productDescription: '',
-      rate: '18%',
-      uoM: 'KGM',
-      quantity: 1,
-      valueSalesExcludingST: 0,
-      salesTaxApplicable: 0,
-      totalValues: 0,
-      saleType: 'Goods at standard rate (default)'
-    }
-  ]);
+  // Line Items & Stock tracking
+  const [items, setItems] = useState<any[]>([]);
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
+  const [selectedItemsFromPicker, setSelectedItemsFromPicker] = useState<string[]>([]);
+  const [negativeStockReason, setNegativeStockReason] = useState('');
+  
+  const hasNegativeStock = items.some(item => (parseFloat(item.stockQty) - item.quantity) < 0);
 
-  const handleAddItem = () => {
-    setItems([...items, { hsCode: '', productDescription: '', rate: '18%', uoM: 'KGM', quantity: 1, valueSalesExcludingST: 0, salesTaxApplicable: 0, totalValues: 0, saleType: 'Goods at standard rate (default)' }]);
+  const openItemPicker = () => {
+    setSelectedItemsFromPicker([]);
+    setItemSearchQuery('');
+    setShowItemPicker(true);
+  };
+
+  const confirmItemSelection = () => {
+    const newItemsToAdd = inventoryItems
+      .filter(i => selectedItemsFromPicker.includes(i.id))
+      .map(i => ({
+        ...i,
+        quantity: 1,
+        // use defaultRate from DB
+        rate: parseFloat(i.defaultRate) || 0
+      }));
+    
+    setItems([...items, ...newItemsToAdd]);
+    setShowItemPicker(false);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -55,37 +117,354 @@ export default function NewInvoicePage() {
 
   const handleItemChange = (index: number, field: string, value: any) => {
     const newItems = [...items];
-    (newItems[index] as any)[field] = value;
+    newItems[index][field] = value;
     setItems(newItems);
   };
 
-  const handleDryRunVerify = () => {
-    setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
-      alert("Validation Success: Form structure matches FBR Payload Schema.");
-    }, 1500);
+  const handleNTNChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setBuyerNTNCNIC(val);
+    
+    // Auto-fill logic
+    const found = customers.find(c => c.ntnOrCnic === val);
+    if (found) {
+      setNtnNotFound(false);
+      setBuyerBusinessName(found.name);
+      setBuyerRegistrationType(found.isRegistered ? 'Registered' : 'Unregistered');
+      
+      const defaultAddress = found.addresses?.[0];
+      if (defaultAddress) {
+        setBuyerProvince(defaultAddress.province || '');
+        setBuyerAddress(defaultAddress.addressLine || '');
+      }
+    } else {
+      setNtnNotFound(val.length >= 7);
+    }
   };
 
-  if (is24HrOfflineBlocked) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="p-8 max-w-2xl w-full bg-red-50 border border-red-200 rounded-xl text-center shadow-sm">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900">Invoicing Blocked (24-Hour Rule)</h2>
-          <p className="text-red-700 mt-2">
-            You have offline invoices older than 24 hours that have not been synced with FBR. 
-            Please sync them from the Offline Dashboard before creating new invoices.
-          </p>
-          <Button className="mt-6 bg-red-600 hover:bg-red-700">Go to Offline Sync</Button>
-        </div>
-      </div>
+  const handleBusinessNameSelect = (name: string) => {
+    const found = customers.find(c => c.name === name);
+    if (found) {
+      setBuyerBusinessName(found.name);
+      setBuyerNTNCNIC(found.ntnOrCnic);
+      setNtnNotFound(false);
+      setBuyerRegistrationType(found.isRegistered ? 'Registered' : 'Unregistered');
+      
+      const defaultAddress = found.addresses?.[0];
+      if (defaultAddress) {
+        setBuyerProvince(defaultAddress.province || '');
+        setBuyerAddress(defaultAddress.addressLine || '');
+      }
+    } else {
+      setBuyerBusinessName(name);
+    }
+  };
+
+  const handleSaveNewCustomer = async () => {
+    setIsSavingCustomer(true);
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCustomer)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await fetchCustomers();
+        
+        // Auto-select the newly created customer
+        setBuyerNTNCNIC(created.ntnOrCnic);
+        setBuyerBusinessName(created.name);
+        setBuyerRegistrationType(created.isRegistered ? 'Registered' : 'Unregistered');
+        setBuyerProvince(created.addresses?.[0]?.province || '');
+        setBuyerAddress(created.addresses?.[0]?.addressLine || '');
+        
+        setNtnNotFound(false);
+        setShowAddCustomerModal(false);
+        setNewCustomer({ name: '', ntnOrCnic: '', isRegistered: true, province: '', address: '' });
+      } else {
+        showMessage('error', 'Error', "Failed to save customer. Please try again.");
+      }
+    } catch (err) {
+      showMessage('error', 'Error', "An unexpected error occurred while saving the customer.");
+    } finally {
+      setIsSavingCustomer(false);
+    }
+  };
+
+  const generateFbrPayload = () => {
+    return {
+      invoiceType,
+      invoiceDate,
+      sellerNTNCNIC: '7654321', // In real app, fetch from session/business unit
+      sellerBusinessName: 'My Company Pvt Ltd',
+      sellerProvince: 'Sindh',
+      sellerAddress: '123 Business Avenue, Karachi',
+      
+      buyerRegistrationType,
+      ...(buyerRegistrationType === 'Registered' && { buyerNTNCNIC }),
+      buyerBusinessName,
+      buyerProvince,
+      buyerAddress,
+      
+      scenarioId: 'SN001', // Sandbox only
+      items: items.map(item => {
+        const qty = Number(item.quantity || 0);
+        const rate = Number(item.rate || 0);
+        const taxRate = parseFloat(item.taxRate) || 0;
+        
+        const valueExclTax = Number((qty * rate).toFixed(2));
+        const taxAmount = Number(((valueExclTax * taxRate) / 100).toFixed(2));
+        const totalValue = Number((valueExclTax + taxAmount).toFixed(2));
+        
+        return {
+          hsCode: item.hsCode,
+          productDescription: item.name,
+          rate: `${taxRate}%`,
+          uoM: item.uom,
+          quantity: Number(qty.toFixed(4)), // Qty can sometimes have 4 decimals
+          totalValues: totalValue,
+          valueSalesExcludingST: valueExclTax,
+          fixedNotifiedValueOrRetailPrice: 0,
+          salesTaxApplicable: taxAmount,
+          salesTaxWithheldAtSource: 0,
+          extraTax: 0,
+          furtherTax: 0,
+          sroScheduleNo: "",
+          fedPayable: 0,
+          discount: 0,
+          saleType: item.saleType,
+          sroItemSerialNo: ""
+        };
+      })
+    };
+  };
+
+  const handleDryRunVerify = () => {
+    // Validations
+    if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
+      showMessage('error', 'Validation Error', "Please fill in all required buyer information (Name, Province, Address).");
+      return;
+    }
+    if (buyerRegistrationType === 'Registered' && !buyerNTNCNIC) {
+      showMessage('error', 'Validation Error', "NTN/CNIC is required when Buyer is Registered.");
+      return;
+    }
+
+    if (items.length === 0) {
+      showMessage('error', 'Validation Error', "Please add at least one line item to the invoice.");
+      return;
+    }
+    
+    if (hasNegativeStock && !negativeStockReason) {
+      showMessage('error', 'Warning', "Please provide a reason for negative stock before verifying.");
+      return;
+    }
+
+    setIsVerifying(true);
+    
+    const payload = generateFbrPayload();
+    
+    setTimeout(() => {
+      setIsVerifying(false);
+      showMessage(
+        'success', 
+        'Validation Success', 
+        'Form structure matched FBR Payload Schema! You can review the exact JSON payload below:',
+        payload
+      );
+    }, 1000);
+  };
+
+  const handlePostToFBR = () => {
+    // Validations
+    if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
+      showMessage('error', 'Validation Error', "Please fill in all required buyer information (Name, Province, Address).");
+      return;
+    }
+    if (buyerRegistrationType === 'Registered' && !buyerNTNCNIC) {
+      showMessage('error', 'Validation Error', "NTN/CNIC is required when Buyer is Registered.");
+      return;
+    }
+
+    if (items.length === 0) {
+      showMessage('error', 'Validation Error', "Please add at least one line item before posting.");
+      return;
+    }
+    const payload = generateFbrPayload();
+    showMessage(
+      'info',
+      'Post to FBR',
+      'This action will post the following payload to FBR APIs. (Simulation)',
+      payload
     );
-  }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
+      {/* Add Customer Modal */}
+      {showAddCustomerModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Add New Customer</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <Label>Business Name</Label>
+                <Input value={newCustomer.name} onChange={e => setNewCustomer({...newCustomer, name: e.target.value})} placeholder="e.g. ABC Corp" />
+              </div>
+              <div>
+                <Label>NTN / CNIC</Label>
+                <Input value={newCustomer.ntnOrCnic} onChange={e => setNewCustomer({...newCustomer, ntnOrCnic: e.target.value})} placeholder="e.g. 1234567-8" />
+              </div>
+              <div>
+                <Label>Registration Type</Label>
+                <Select value={newCustomer.isRegistered ? 'true' : 'false'} onValueChange={v => setNewCustomer({...newCustomer, isRegistered: v === 'true'})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Registered</SelectItem>
+                    <SelectItem value="false">Unregistered</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 md:col-span-1">
+                  <Label>Province</Label>
+                  <Input value={newCustomer.province} onChange={e => setNewCustomer({...newCustomer, province: e.target.value})} placeholder="e.g. Sindh" />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <Label>Address</Label>
+                  <Input value={newCustomer.address} onChange={e => setNewCustomer({...newCustomer, address: e.target.value})} placeholder="e.g. Karachi" />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 justify-end pt-4">
+                <Button variant="outline" onClick={() => setShowAddCustomerModal(false)}>Cancel</Button>
+                <Button onClick={handleSaveNewCustomer} disabled={isSavingCustomer || !newCustomer.name || !newCustomer.ntnOrCnic} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  {isSavingCustomer ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Customer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item Picker Modal */}
+      {showItemPicker && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-[#1a7368]" />
+                Select Items to Add
+              </h3>
+            </div>
+            
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input 
+                type="text"
+                placeholder="Search by name or HS Code..."
+                value={itemSearchQuery}
+                onChange={e => setItemSearchQuery(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7368]/20 focus:border-[#1a7368]"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-4 border rounded-md border-slate-100">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-100 text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 w-10"></th>
+                    <th className="px-4 py-2 font-medium">Item Details</th>
+                    <th className="px-4 py-2 font-medium text-center">In Stock</th>
+                    <th className="px-4 py-2 font-medium text-right">Unit Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {inventoryItems.filter(i => i.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) || i.hsCode.includes(itemSearchQuery)).map(item => {
+                    const isSelected = selectedItemsFromPicker.includes(item.id);
+                    return (
+                      <tr 
+                        key={item.id} 
+                        className={`cursor-pointer hover:bg-slate-50 ${isSelected ? 'bg-emerald-50/50' : ''}`}
+                        onClick={() => {
+                          if (isSelected) setSelectedItemsFromPicker(selectedItemsFromPicker.filter(id => id !== item.id));
+                          else setSelectedItemsFromPicker([...selectedItemsFromPicker, item.id]);
+                        }}
+                      >
+                        <td className="px-4 py-2">
+                          <input type="checkbox" checked={isSelected} readOnly className="h-4 w-4 text-[#1a7368] rounded border-slate-300 focus:ring-[#1a7368]" />
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="font-medium text-slate-900">{item.name} {item.internalName ? `(${item.internalName})` : ''}</div>
+                          <div className="text-xs text-slate-500">HS: {item.hsCode} | UOM: {item.uom}</div>
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <Badge variant="outline" className={parseFloat(item.stockQty) <= 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}>
+                            {parseFloat(item.stockQty)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2 text-right font-medium">Rs {parseFloat(item.defaultRate).toLocaleString()}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
+              <Button variant="outline" onClick={() => setShowItemPicker(false)}>Cancel</Button>
+              <Button onClick={confirmItemSelection} disabled={selectedItemsFromPicker.length === 0} className="bg-[#1a7368] hover:bg-[#155b52] text-white">
+                Add {selectedItemsFromPicker.length} Items
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message/Alert Modal */}
+      {messageModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full overflow-hidden flex flex-col">
+            <div className={`px-6 py-4 border-b flex items-center gap-3 ${
+              messageModal.type === 'success' ? 'bg-emerald-50 border-emerald-100' : 
+              messageModal.type === 'error' ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'
+            }`}>
+              {messageModal.type === 'success' && <CheckSquare className="h-6 w-6 text-emerald-600" />}
+              {messageModal.type === 'error' && <AlertCircle className="h-6 w-6 text-red-600" />}
+              {messageModal.type === 'info' && <FileText className="h-6 w-6 text-blue-600" />}
+              <h3 className={`text-lg font-bold ${
+                messageModal.type === 'success' ? 'text-emerald-900' : 
+                messageModal.type === 'error' ? 'text-red-900' : 'text-blue-900'
+              }`}>
+                {messageModal.title}
+              </h3>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <p className="text-slate-700 mb-4">{messageModal.message}</p>
+              {messageModal.payload && (
+                <div className="bg-slate-900 rounded-md p-4 overflow-x-auto">
+                  <pre className="text-xs text-emerald-400 font-mono">
+                    {messageModal.payload}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end bg-slate-50">
+              <Button onClick={() => setMessageModal({...messageModal, show: false})} className={
+                messageModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 
+                messageModal.type === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+              }>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -106,7 +485,7 @@ export default function NewInvoicePage() {
               <Play className="mr-2 h-4 w-4 text-blue-600" />
               {isVerifying ? "Verifying..." : "Dry Run"}
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+            <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={handlePostToFBR}>
               <Save className="mr-2 h-4 w-4" />
               Post to FBR
             </Button>
@@ -122,10 +501,10 @@ export default function NewInvoicePage() {
             <CardTitle className="text-lg font-semibold text-slate-800">1. Invoice Header</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="invoiceType">Invoice Type</Label>
-              <Select value={invoiceType} onValueChange={setInvoiceType}>
-                <SelectTrigger id="invoiceType">
+            <div className="space-y-4">
+              <Label htmlFor="invoiceType" className="text-slate-700">Invoice Type</Label>
+              <Select value={invoiceType} onValueChange={(v) => v && setInvoiceType(v)}>
+                <SelectTrigger className="bg-slate-50 border-slate-200">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,9 +554,9 @@ export default function NewInvoicePage() {
             <CardTitle className="text-lg font-semibold text-slate-800">3. Buyer Information</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="buyerRegistrationType">Registration Type</Label>
-              <Select value={buyerRegistrationType} onValueChange={setBuyerRegistrationType}>
+              <Select value={buyerRegistrationType} onValueChange={(v) => v && setBuyerRegistrationType(v)}>
                 <SelectTrigger id="buyerRegistrationType">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -189,11 +568,27 @@ export default function NewInvoicePage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="buyerNTNCNIC">Buyer NTN / CNIC</Label>
-              <Input id="buyerNTNCNIC" placeholder="7-digit NTN" value={buyerNTNCNIC} onChange={e => setBuyerNTNCNIC(e.target.value)} />
+              <Input id="buyerNTNCNIC" placeholder="7-digit NTN" value={buyerNTNCNIC} onChange={handleNTNChange} />
+              {ntnNotFound && (
+                <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                  Not found. 
+                  <button onClick={() => { setNewCustomer({ ...newCustomer, ntnOrCnic: buyerNTNCNIC }); setShowAddCustomerModal(true); }} className="text-blue-600 hover:underline font-medium">Add new</button>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="buyerBusinessName">Business Name</Label>
-              <Input id="buyerBusinessName" placeholder="Enter business name" value={buyerBusinessName} onChange={e => setBuyerBusinessName(e.target.value)} />
+              <Combobox 
+                options={customers.map(c => ({ label: c.name, value: c.name }))}
+                value={buyerBusinessName}
+                onChange={handleBusinessNameSelect}
+                onAdd={(name) => {
+                  setNewCustomer({ ...newCustomer, name, ntnOrCnic: buyerNTNCNIC });
+                  setShowAddCustomerModal(true);
+                }}
+                placeholder="Select or add business"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="buyerProvince">Province</Label>
@@ -207,61 +602,119 @@ export default function NewInvoicePage() {
         </Card>
 
         {/* Line Items */}
-        <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
+        <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-visible">
+          <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl">
             <CardTitle className="text-lg font-semibold text-slate-800">4. Line Items</CardTitle>
-            <Button onClick={handleAddItem} variant="outline" size="sm" className="h-8 border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100">
-              <Plus className="mr-1 h-3 w-3" /> Add Item
+            <Button onClick={openItemPicker} variant="outline" size="sm" className="h-8 border-[#1a7368]/30 text-[#1a7368] bg-emerald-50 hover:bg-emerald-100">
+              <Plus className="mr-1 h-3 w-3" /> Select Items
             </Button>
           </CardHeader>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[200px]">
             <Table>
-              <TableHeader className="bg-slate-50">
+              <TableHeader className="bg-slate-50 text-slate-600">
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
-                  <TableHead className="min-w-[200px]">Description & HS Code</TableHead>
-                  <TableHead>Qty & UOM</TableHead>
-                  <TableHead>Rate</TableHead>
-                  <TableHead>Value (Excl. Tax)</TableHead>
-                  <TableHead>Sales Tax</TableHead>
-                  <TableHead>Total Value</TableHead>
+                  <TableHead className="min-w-[250px]">Item Details</TableHead>
+                  <TableHead className="w-32">Qty</TableHead>
+                  <TableHead className="w-32">Rate (Rs)</TableHead>
+                  <TableHead className="w-32 text-right">Value</TableHead>
+                  <TableHead className="w-24 text-right">Tax</TableHead>
+                  <TableHead className="w-32 text-right">Total</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {items.map((item, index) => (
-                  <TableRow key={index} className="align-top">
-                    <TableCell className="pt-4 font-medium text-slate-500">{index + 1}</TableCell>
-                    <TableCell className="space-y-2 min-w-[200px]">
-                      <Input placeholder="Description" value={item.productDescription} onChange={(e) => handleItemChange(index, 'productDescription', e.target.value)} className="h-8 text-sm" />
-                      <Input placeholder="HS Code" value={item.hsCode} onChange={(e) => handleItemChange(index, 'hsCode', e.target.value)} className="h-8 text-sm" />
-                      <Input placeholder="Sale Type (e.g. Standard)" value={item.saleType} onChange={(e) => handleItemChange(index, 'saleType', e.target.value)} className="h-8 text-sm text-xs" />
-                    </TableCell>
-                    <TableCell className="space-y-2 w-32">
-                      <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} className="h-8 text-sm" />
-                      <Input placeholder="UOM" value={item.uoM} onChange={(e) => handleItemChange(index, 'uoM', e.target.value)} className="h-8 text-sm uppercase" />
-                    </TableCell>
-                    <TableCell className="w-24">
-                      <Input placeholder="18%" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} className="h-8 text-sm" />
-                    </TableCell>
-                    <TableCell className="w-32">
-                      <Input type="number" placeholder="0" value={item.valueSalesExcludingST} onChange={(e) => handleItemChange(index, 'valueSalesExcludingST', parseFloat(e.target.value) || 0)} className="h-8 text-sm" />
-                    </TableCell>
-                    <TableCell className="w-32">
-                      <Input type="number" placeholder="0" value={item.salesTaxApplicable} onChange={(e) => handleItemChange(index, 'salesTaxApplicable', parseFloat(e.target.value) || 0)} className="h-8 text-sm" />
-                    </TableCell>
-                    <TableCell className="w-32">
-                      <Input type="number" placeholder="0" value={item.totalValues} onChange={(e) => handleItemChange(index, 'totalValues', parseFloat(e.target.value) || 0)} className="h-8 text-sm font-semibold text-slate-800" />
-                    </TableCell>
-                    <TableCell className="pt-4">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              <TableBody className="divide-y divide-slate-100">
+                {items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                      No items added yet. Click <strong>Select Items</strong> to add products from your inventory.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  items.map((item, index) => {
+                    const qty = item.quantity || 0;
+                    const rate = item.rate || 0;
+                    const taxRate = parseFloat(item.taxRate) || 0;
+                    const valueExclTax = qty * rate;
+                    const taxAmount = (valueExclTax * taxRate) / 100;
+                    const totalValue = valueExclTax + taxAmount;
+                    
+                    const currentStock = parseFloat(item.stockQty);
+                    const remainingStock = currentStock - qty;
+                    const isNegative = remainingStock < 0;
+
+                    return (
+                      <TableRow key={index} className="align-top hover:bg-slate-50/50">
+                        <TableCell className="pt-4 font-medium text-slate-500">{index + 1}</TableCell>
+                        <TableCell className="pt-4 space-y-1">
+                          <div className="font-semibold text-slate-800">{item.name} {item.internalName ? <span className="font-normal text-slate-500 text-xs">({item.internalName})</span> : ''}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-2">
+                            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 px-1 py-0">{item.hsCode}</Badge>
+                            <span>{item.uom}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-[10px] uppercase text-emerald-600 bg-emerald-50 px-1 rounded">{item.saleType.split(' ')[0]}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="pt-3">
+                          <div className="relative flex flex-col gap-1.5">
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={item.quantity || ''} 
+                              onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} 
+                              className="h-9 text-sm focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                            />
+                            <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center justify-between border ${isNegative ? 'bg-red-50 border-red-200 text-red-700 font-medium' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+                              <span>Stock: {currentStock}</span>
+                              <span>Rem: {remainingStock}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="pt-3">
+                          <Input 
+                            type="number" 
+                            value={item.rate || ''} 
+                            onChange={(e) => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} 
+                            className="h-9 text-sm focus:ring-[#1a7368]/20 focus:border-[#1a7368]" 
+                          />
+                        </TableCell>
+                        <TableCell className="pt-4 text-right font-medium text-slate-700">
+                          {valueExclTax.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="pt-4 text-right">
+                          <div className="text-sm font-medium text-slate-700">{taxAmount.toLocaleString()}</div>
+                          <div className="text-[10px] text-slate-400">@{taxRate}%</div>
+                        </TableCell>
+                        <TableCell className="pt-4 text-right font-bold text-[#1a7368]">
+                          {totalValue.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="pt-3 text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)} className="h-9 w-9 text-slate-400 hover:text-red-500 hover:bg-red-50">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
+            
+            {hasNegativeStock && (
+              <div className="p-4 bg-red-50/50 border-t border-red-100 m-4 rounded-lg flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2 text-red-700 font-medium text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Warning: Some items will result in negative stock. Please provide a reason below.
+                </div>
+                <Input 
+                  required
+                  placeholder="e.g. Stock received but purchase invoice pending..."
+                  value={negativeStockReason}
+                  onChange={e => setNegativeStockReason(e.target.value)}
+                  className="bg-white border-red-200 focus:ring-red-500/20 focus:border-red-500"
+                />
+              </div>
+            )}
           </div>
         </Card>
 
