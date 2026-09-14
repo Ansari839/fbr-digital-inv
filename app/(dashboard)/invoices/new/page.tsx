@@ -22,6 +22,9 @@ export default function NewInvoicePage() {
   const [holidayAlertMessage, setHolidayAlertMessage] = useState('');
   const [forceIssueReason, setForceIssueReason] = useState('');
   const [pendingAction, setPendingAction] = useState<'dryRun' | 'post' | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateMessage, setDuplicateMessage] = useState('');
   
   // Add Customer Modal State
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -334,7 +337,27 @@ export default function NewInvoicePage() {
     }, 1000);
   };
 
-  const handlePostToFBR = () => {
+  const proceedWithPost = () => {
+    setIsSubmitting(true);
+    setShowDuplicateWarning(false);
+    const payload = generateFbrPayload();
+    if (forceIssueReason.trim().length >= 5) {
+      (payload as any).forceIssueReason = forceIssueReason.trim();
+    }
+    
+    // Simulate API request to FBR
+    setTimeout(() => {
+      setIsSubmitting(false);
+      showMessage(
+        'info',
+        'Post to FBR',
+        'This action will post the following payload to FBR APIs. (Simulation)',
+        payload
+      );
+    }, 1500);
+  };
+
+  const handlePostToFBR = async () => {
     // Validations
     if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
       showMessage('error', 'Validation Error', "Please fill in all required buyer information (Name, Province, Address).");
@@ -359,16 +382,42 @@ export default function NewInvoicePage() {
       return;
     }
 
-    const payload = generateFbrPayload();
-    if (forceIssueReason.trim().length >= 5) {
-      (payload as any).forceIssueReason = forceIssueReason.trim();
+    // Pre-flight Duplicate Check
+    setIsSubmitting(true);
+    try {
+      const payload = generateFbrPayload();
+      // Calculate total amount from items to send to the check endpoint
+      const totalAmount = items.reduce((acc, item) => {
+        const valueExcl = item.quantity * item.rate;
+        const tax = (valueExcl * parseFloat(item.taxRate || 0)) / 100;
+        return acc + valueExcl + tax;
+      }, 0);
+
+      const checkRes = await fetch('/api/invoices/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partyId: buyerNTNCNIC || buyerBusinessName, // Sending NTN or Name as identifier proxy
+          totalAmount,
+          items: items.map(i => ({ itemId: i.id, quantity: i.quantity, rate: i.rate }))
+        })
+      });
+
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.isDuplicate) {
+          setIsSubmitting(false);
+          setDuplicateMessage(checkData.message);
+          setShowDuplicateWarning(true);
+          return; // Wait for user decision
+        }
+      }
+    } catch (e) {
+      console.error("Duplicate check failed", e);
     }
-    showMessage(
-      'info',
-      'Post to FBR',
-      'This action will post the following payload to FBR APIs. (Simulation)',
-      payload
-    );
+    
+    // If no duplicate or check failed, proceed normally
+    proceedWithPost();
   };
 
   return (
@@ -452,6 +501,32 @@ export default function NewInvoicePage() {
                 if (pendingAction === 'post') handlePostToFBR();
               }} disabled={forceIssueReason.trim().length < 5} className="bg-amber-500 hover:bg-amber-600 text-white">
                 Proceed Anyway
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Warning Modal */}
+      {showDuplicateWarning && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[55] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-red-500 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Duplicate Invoice Alert!
+            </h3>
+            <p className="text-sm text-slate-600 mb-4 font-medium">
+              Ye 2 invoices same ho rahi hain. Is buyer ki is maheene mein bilkul aisi hi same amount ki invoice pehle se ban chuki hai.
+            </p>
+            <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-2 rounded border">
+              FBR API does not prevent exact duplicate submissions. Are you absolutely sure you want to post this as a NEW invoice?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowDuplicateWarning(false)}>
+                No, Cancel
+              </Button>
+              <Button onClick={proceedWithPost} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+                Yes, Post Anyway
               </Button>
             </div>
           </div>
@@ -587,14 +662,18 @@ export default function NewInvoicePage() {
               variant="outline" 
               className="border-slate-300 text-slate-700 hover:bg-slate-50"
               onClick={handleDryRunVerify}
-              disabled={isVerifying}
+              disabled={isVerifying || isSubmitting}
             >
               <Play className="mr-2 h-4 w-4 text-blue-600" />
               {isVerifying ? "Verifying..." : "Dry Run"}
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={handlePostToFBR}>
-              <Save className="mr-2 h-4 w-4" />
-              Post to FBR
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed" 
+              onClick={handlePostToFBR}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {isSubmitting ? "Posting..." : "Post to FBR"}
             </Button>
           </div>
         </div>
