@@ -33,8 +33,8 @@ export async function POST(request: Request) {
     }
 
     // Further check if the items match exactly
-    // A strict match means the exact same number of items, and each item has same quantity and rate
     let exactMatchFound = false;
+    let matchedInvoice = null;
 
     for (const inv of potentialDuplicates) {
       if (inv.lineItems.length !== items.length) continue;
@@ -57,12 +57,19 @@ export async function POST(request: Request) {
 
       if (allItemsMatch) {
         exactMatchFound = true;
+        matchedInvoice = {
+          id: inv.id,
+          createdAt: inv.createdAt,
+          fbrIrn: inv.fbrIrn,
+          totalAmount: inv.totalAmount
+        };
         break;
       }
     }
 
     return NextResponse.json({ 
       isDuplicate: exactMatchFound,
+      matchedInvoice: matchedInvoice,
       message: exactMatchFound ? "Exact match found in the current month." : ""
     });
 

@@ -25,6 +25,7 @@ export default function NewInvoicePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateMessage, setDuplicateMessage] = useState('');
+  const [matchedInvoiceDetails, setMatchedInvoiceDetails] = useState<any>(null);
   
   // Add Customer Modal State
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -319,7 +320,12 @@ export default function NewInvoicePage() {
       return;
     }
 
+    runDuplicateCheck('dryRun');
+  };
+
+  const proceedWithDryRun = () => {
     setIsVerifying(true);
+    setShowDuplicateWarning(false);
     
     const payload = generateFbrPayload();
     if (forceIssueReason.trim().length >= 5) {
@@ -382,10 +388,13 @@ export default function NewInvoicePage() {
       return;
     }
 
+    runDuplicateCheck('post');
+  };
+
+  const runDuplicateCheck = async (actionType: 'dryRun' | 'post') => {
     // Pre-flight Duplicate Check
     setIsSubmitting(true);
     try {
-      const payload = generateFbrPayload();
       // Calculate total amount from items to send to the check endpoint
       const totalAmount = items.reduce((acc, item) => {
         const valueExcl = item.quantity * item.rate;
@@ -408,6 +417,8 @@ export default function NewInvoicePage() {
         if (checkData.isDuplicate) {
           setIsSubmitting(false);
           setDuplicateMessage(checkData.message);
+          setMatchedInvoiceDetails(checkData.matchedInvoice);
+          setPendingAction(actionType);
           setShowDuplicateWarning(true);
           return; // Wait for user decision
         }
@@ -417,7 +428,11 @@ export default function NewInvoicePage() {
     }
     
     // If no duplicate or check failed, proceed normally
-    proceedWithPost();
+    if (actionType === 'dryRun') {
+      proceedWithDryRun();
+    } else {
+      proceedWithPost();
+    }
   };
 
   return (
@@ -518,15 +533,30 @@ export default function NewInvoicePage() {
             <p className="text-sm text-slate-600 mb-4 font-medium">
               Ye 2 invoices same ho rahi hain. Is buyer ki is maheene mein bilkul aisi hi same amount ki invoice pehle se ban chuki hai.
             </p>
+            
+            {matchedInvoiceDetails && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4 text-xs text-red-800 space-y-1">
+                <p><span className="font-bold">Match Found:</span></p>
+                <p>Invoice Ref: {matchedInvoiceDetails.id}</p>
+                <p>Date/Time: {new Date(matchedInvoiceDetails.createdAt).toLocaleString()}</p>
+                {matchedInvoiceDetails.fbrIrn && <p>FBR IRN: {matchedInvoiceDetails.fbrIrn}</p>}
+                <p>Amount: Rs {matchedInvoiceDetails.totalAmount}</p>
+              </div>
+            )}
+
             <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-2 rounded border">
-              FBR API does not prevent exact duplicate submissions. Are you absolutely sure you want to post this as a NEW invoice?
+              FBR API does not prevent exact duplicate submissions. Are you absolutely sure you want to {pendingAction === 'dryRun' ? 'dry-run' : 'post'} this as a NEW invoice?
             </p>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowDuplicateWarning(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowDuplicateWarning(false);
+                setPendingAction(null);
+                setMatchedInvoiceDetails(null);
+              }}>
                 No, Cancel
               </Button>
-              <Button onClick={proceedWithPost} className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                Yes, Post Anyway
+              <Button onClick={() => pendingAction === 'dryRun' ? proceedWithDryRun() : proceedWithPost()} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+                Yes, {pendingAction === 'dryRun' ? 'Dry Run' : 'Post'} Anyway
               </Button>
             </div>
           </div>
