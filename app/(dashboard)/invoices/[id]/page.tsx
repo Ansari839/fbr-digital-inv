@@ -14,12 +14,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ViewInvoicePage() {
   const { id } = useParams();
   const [invoice, setInvoice] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [layout, setLayout] = useState('modern');
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    // Check premium status
+    const status = localStorage.getItem("fbr_premium_unlocked");
+    if (status === "true") setIsPremium(true);
+  }, []);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -85,10 +100,34 @@ export default function ViewInvoicePage() {
           </div>
         </div>
 
-        <Button onClick={handlePrint} className="bg-[var(--primary)] text-white">
-          <Printer className="h-4 w-4 mr-2" />
-          Print / Save PDF
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="bg-[var(--primary)] text-white">
+              <Printer className="h-4 w-4 mr-2" />
+              Print / Save PDF
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Print Options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href={`/invoices/${id}/print`} className="cursor-pointer w-full">
+                FBR Default (A4 PDF)
+              </Link>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem asChild>
+              <Link href={isPremium ? `/invoices/${id}/builder` : `/settings/premium`} className="cursor-pointer w-full flex justify-between items-center">
+                <span>Custom Builder</span>
+                {isPremium ? (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">PRO</span>
+                ) : (
+                  <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">LOCKED</span>
+                )}
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Invoice Document Wrapper */}
