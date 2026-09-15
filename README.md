@@ -4,6 +4,11 @@ FBR SyncPro is a powerful, Next.js based application designed to seamlessly inte
 
 ## 🚀 Key Features
 
+### 🏢 Multi-Tenant SaaS Architecture & Super Admin
+- **Data Isolation:** Seamlessly scales to host multiple clients on a single instance using `scopedDb` middleware ensuring complete data isolation.
+- **Resource Management:** Super Admin dashboard to allocate VPS storage limits and track invoice quotas per client.
+- **IRIS Token Segregation:** Each client configures their own FBR IRIS tokens (Sandbox/Production) secured behind authentication, eliminating the need for separate hosting environments.
+
 ### 1. 📝 Smart Invoice Generation
 - **Auto-Fill Details**: Enter a Customer NTN/CNIC and the system automatically fills in their registered business name, province, and address.
 - **Stock-Aware Item Picker**: Easily select items from a pop-up checklist. The invoice automatically locks descriptive fields to prevent tampering, requiring only Qty and Rate.
@@ -21,6 +26,7 @@ FBR SyncPro is a powerful, Next.js based application designed to seamlessly inte
 ### 4. 👥 Customer Management
 - Maintain a database of registered and unregistered buyers.
 - Enforces NTN checks for Registered buyers as per FBR rules.
+- **WHT Support**: Built-in logic to optionally apply a 0.10% Withholding Tax automatically on invoices depending on vendor profiles.
 
 ### 5. ☁️ Bulk Excel Uploads
 - APIs to download pre-formatted Excel templates (with sample data) for Invoices, Customers, and Items.
@@ -31,6 +37,24 @@ FBR SyncPro is a powerful, Next.js based application designed to seamlessly inte
 
 ### 7. 🗓️ Holiday Validation Engine
 - **Sunday Blockers & Gazetted Holidays**: Live integration with Google Calendar `basic.ics` feeds. Validates invoice issuance dates to prevent backdating on Sundays or official holidays without a mandatory logged reason.
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    classDef client fill:#f8fafc,stroke:#94a3b8,stroke-width:2px;
+    classDef auth fill:#fef08a,stroke:#eab308,stroke-width:2px;
+    classDef app fill:#e0f2fe,stroke:#38bdf8,stroke-width:2px;
+    classDef db fill:#dcfce3,stroke:#4ade80,stroke-width:2px;
+    classDef fbr fill:#fce7f3,stroke:#f472b6,stroke-width:2px;
+    
+    TenantClient["Tenant User"]:::client --> NextAuth["NextAuth.js\n(Auth)"]:::auth
+    NextAuth --> API_Invoices["/api/invoices\n(API Route)"]:::app
+    API_Invoices --> ScopedDB["tenant-scope.ts\n(Isolation Middleware)"]:::app
+    ScopedDB --> PrismaClient["Prisma ORM"]:::db
+    PrismaClient --> BUTable[("BusinessUnit DB\n(Quotas & IRIS Tokens)")]:::db
+    API_Invoices --> |Payload via Static IP| FBR_Production["FBR IRIS API"]:::fbr
+```
 
 ## 🛠️ Technology Stack
 - **Framework**: Next.js 15+ (App Router)
