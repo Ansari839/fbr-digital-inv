@@ -7,14 +7,14 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user?.id) {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const { password } = await req.json();
     
     if (!password) {
-      return new Response("Password is required", { status: 400 });
+      return Response.json({ error: "Password is required" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     });
 
     if (!user || !user.passwordHash) {
-      return new Response("User not found", { status: 404 });
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
@@ -33,6 +33,6 @@ export async function POST(req: Request) {
       return Response.json({ success: false, error: "Incorrect password" }, { status: 403 });
     }
   } catch (error: any) {
-    return new Response(error.message || "Internal server error", { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

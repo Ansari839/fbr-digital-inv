@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user?.businessUnitId) {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -14,7 +14,7 @@ export async function GET() {
     const bu = await db.businessUnit.getCurrent();
     
     if (!bu) {
-      return new Response("Business unit not found", { status: 404 });
+      return Response.json({ error: "Business unit not found" }, { status: 404 });
     }
 
     return Response.json({
@@ -23,7 +23,7 @@ export async function GET() {
       irisProductionToken: bu.irisProductionToken,
     });
   } catch (error: any) {
-    return new Response(error.message || "Internal server error", { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -31,7 +31,7 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user?.businessUnitId) {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -48,6 +48,6 @@ export async function PUT(req: Request) {
 
     return Response.json({ success: true, irisEnvironment: updated.irisEnvironment });
   } catch (error: any) {
-    return new Response(error.message || "Internal server error", { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

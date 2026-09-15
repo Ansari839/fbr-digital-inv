@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   
   if (!session || session.user?.role !== "SUPER_ADMIN") {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -19,7 +19,7 @@ export async function GET() {
     
     return Response.json(clients);
   } catch (error: any) {
-    return new Response(error.message || "Internal server error", { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -27,7 +27,7 @@ export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   
   if (!session || session.user?.role !== "SUPER_ADMIN") {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -46,6 +46,6 @@ export async function PUT(req: Request) {
 
     return Response.json(updated);
   } catch (error: any) {
-    return new Response(error.message || "Internal server error", { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
