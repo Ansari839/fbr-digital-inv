@@ -8,14 +8,40 @@ generator client {
 }
 
 model BusinessUnit {
-  id            String   @id @default(cuid())
-  ntn           String
-  strn          String?
-  name          String
-  logoUrl       String?
-  addresses     PartyAddress[]
-  invoices      Invoice[]
-  items         Item[]
+  id                  String   @id @default(cuid())
+  ntn                 String
+  strn                String?
+  name                String
+  logoUrl             String?
+  
+  // Quotas & Dedication
+  planTier            String   @default("starter")
+  maxInvoicesPerMonth Int      @default(100)
+  maxStorageMb        Int      @default(500)
+  storageUsedMb       Float    @default(0)
+  dbConnectionString  String?
+  isActive            Boolean  @default(true)
+
+  // FBR IRIS Credentials
+  irisEnvironment     String   @default("SANDBOX") // SANDBOX or PRODUCTION
+  irisSandboxToken    String?
+  irisProductionToken String?
+
+  addresses           PartyAddress[]
+  invoices            Invoice[]
+  items               Item[]
+  users               User[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  role           String   @default("TENANT") // SUPER_ADMIN or TENANT
+  businessUnitId String?
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  createdAt      DateTime @default(now())
 }
 
 model Party {

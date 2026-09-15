@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { scopedDb } from '@/lib/db/tenant-scope';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user?.businessUnitId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const invoices = await prisma.invoice.findMany({
+    const db = scopedDb(session.user.businessUnitId);
+    const invoices = await db.invoice.findMany({
       include: {
         party: true,
       },
@@ -20,16 +29,37 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user?.businessUnitId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
+    const db = scopedDb(session.user.businessUnitId);
     const body = await request.json();
     const { payload, buyerNTNCNIC, buyerBusinessName, buyerProvince, buyerAddress, forceIssueReason, items, applyWht } = body;
 
-    // 1. Get or Default Business Unit
-    let bu = await prisma.businessUnit.findFirst();
-    if (!bu) {
-      bu = await prisma.businessUnit.create({
-        data: { ntn: "7654321", name: "My Company Pvt Ltd" }
-      });
+    // 1. Get Business Unit & Check Quota
+    const bu = await db.businessUnit.getCurrent();
+    if (!bu) return NextResponse.json({ error: 'Business unit not found' }, { status: 404 });
+
+    if (bu.storageUsedMb >= bu.maxStorageMb) {
+      return NextResponse.json({ error: 'Storage quota exceeded. Please upgrade your package.' }, { status: 403 });
+    }
+    
+    // Also checking maxInvoicesPerMonth
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const invoiceCountThisMonth = await db.invoice.count({ where: { createdAt: { gte: startOfMonth } } });
+    if (invoiceCountThisMonth >= bu.maxInvoicesPerMonth) {
+      return NextResponse.json({ error: 'Monthly invoice limit exceeded. Please upgrade your package.' }, { status: 403 });
+    }
+
+    // Checking IRIS Configuration
+    const activeToken = bu.irisEnvironment === "PRODUCTION" ? bu.irisProductionToken : bu.irisSandboxToken;
+    if (!activeToken) {
+      return NextResponse.json({ error: `FBR IRIS ${bu.irisEnvironment} token is missing. Please configure it in Settings.` }, { status: 400 });
     }
 
     // 2. Find or Create Party (Buyer)
@@ -38,7 +68,8 @@ export async function POST(request: Request) {
         OR: [
           { ntnOrCnic: buyerNTNCNIC || "UNKNOWN" },
           { name: buyerBusinessName }
-        ]
+        ],
+        invoices: { some: { businessUnitId: bu.id } } // Ensure party belongs to this tenant
       },
       include: { addresses: true }
     });
@@ -53,7 +84,8 @@ export async function POST(request: Request) {
             create: {
               label: "Default",
               province: buyerProvince || "Unknown",
-              addressLine: buyerAddress || "Unknown"
+              addressLine: buyerAddress || "Unknown",
+              businessUnitId: bu.id
             }
           }
         },
@@ -65,7 +97,8 @@ export async function POST(request: Request) {
           partyId: party.id,
           label: "Default",
           province: buyerProvince || "Unknown",
-          addressLine: buyerAddress || "Unknown"
+          addressLine: buyerAddress || "Unknown",
+          businessUnitId: bu.id
         }
       });
       party.addresses = [addr];
@@ -82,13 +115,12 @@ export async function POST(request: Request) {
     const mockFbrIrn = `4220108920${Math.floor(Math.random() * 100000000)}`;
     const mockFbrTimestamp = new Date();
 
-    // 5. Create Invoice in DB
-    const newInvoice = await prisma.invoice.create({
+    // 5. Create Invoice in DB using scopedDb
+    const newInvoice = await db.invoice.create({
       data: {
-        businessUnitId: bu.id,
         partyId: party.id,
         partyAddressId: party.addresses[0].id,
-        environment: "Sandbox (Demo)",
+        environment: bu.irisEnvironment === "PRODUCTION" ? "Production" : "Sandbox (Demo)",
         fbrIrn: mockFbrIrn,
         fbrTimestamp: mockFbrTimestamp,
         status: "Submitted",
@@ -108,13 +140,16 @@ export async function POST(request: Request) {
 
     // 6. Deduct Stock
     for (const i of items) {
-       await prisma.item.update({
+       await db.item.update({
          where: { id: i.id || i.itemId },
          data: {
            stockQty: { decrement: i.quantity }
          }
        }).catch(() => {}); // Ignore if stock item doesn't exist
     }
+
+    // 7. Increment Storage Quota (simulate PDF size ~ 0.2 MB per invoice)
+    await db.businessUnit.updateStorage(0.2);
 
     return NextResponse.json({ success: true, invoice: newInvoice });
 

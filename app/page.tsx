@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import { FileText, CheckCircle, AlertCircle, Edit, Printer, Plus } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, Edit, Printer, Plus, Server, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 // Mock Data for the chart
@@ -19,6 +19,21 @@ const chartData = [
 export default function DashboardPage() {
   const [fromDate, setFromDate] = useState('2025-08-01');
   const [toDate, setToDate] = useState('2025-09-29');
+  
+  // Quota State
+  const [quota, setQuota] = useState<{ maxStorageMb: number, storageUsedMb: number, planTier: string } | null>(null);
+
+  useEffect(() => {
+    // In a real app we'd handle 401 redirect to login here, or use NextAuth's useSession
+    fetch('/api/dashboard/quota')
+      .then(res => res.json())
+      .then(data => setQuota(data))
+      .catch(console.error);
+  }, []);
+
+  const storagePercentage = quota ? Math.min(100, Math.round((quota.storageUsedMb / quota.maxStorageMb) * 100)) : 0;
+  const isStorageWarning = storagePercentage > 80;
+  const isStorageDanger = storagePercentage >= 100;
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6">
@@ -42,6 +57,47 @@ export default function DashboardPage() {
           <Button className="h-9 px-6 bg-[var(--primary)] hover:opacity-90 text-white">Filter</Button>
         </div>
       </div>
+
+      {/* Storage Quota Bar */}
+      {quota && (
+        <Card className={`border ${isStorageDanger ? 'border-red-200 bg-red-50' : isStorageWarning ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'} shadow-sm`}>
+          <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-md ${isStorageDanger ? 'bg-red-100 text-red-600' : isStorageWarning ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                <Server className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                  Storage Quota 
+                  <Badge variant="outline" className="text-[10px] uppercase font-bold h-5 px-1.5">{quota.planTier} Plan</Badge>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Hostinger VPS Allocated Limit</p>
+              </div>
+            </div>
+            
+            <div className="flex-1 max-w-xl">
+              <div className="flex justify-between text-xs mb-1 font-medium">
+                <span className={isStorageDanger ? 'text-red-700' : isStorageWarning ? 'text-amber-700' : 'text-slate-600'}>
+                  {quota.storageUsedMb.toFixed(2)} MB Used
+                </span>
+                <span className="text-slate-500">{quota.maxStorageMb} MB Total</span>
+              </div>
+              <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${isStorageDanger ? 'bg-red-500' : isStorageWarning ? 'bg-amber-500' : 'bg-blue-500'} transition-all duration-500`}
+                  style={{ width: `${storagePercentage}%` }}
+                />
+              </div>
+              {isStorageWarning && (
+                <p className={`text-[10px] mt-1.5 flex items-center gap-1 ${isStorageDanger ? 'text-red-600 font-bold' : 'text-amber-600'}`}>
+                  <AlertTriangle className="h-3 w-3" />
+                  {isStorageDanger ? 'Storage limit exceeded! You cannot create new invoices.' : 'Approaching storage limit. Please consider upgrading your plan.'}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 4 Top Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
