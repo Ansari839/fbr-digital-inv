@@ -53,7 +53,7 @@ export function Sidebar() {
         
         <Link 
           href="/" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname === "/" 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -65,7 +65,7 @@ export function Sidebar() {
 
         <Link 
           href="/invoices/new" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname.startsWith("/invoices/new") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -77,7 +77,7 @@ export function Sidebar() {
 
         <Link 
           href="/settings/returns" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname.startsWith("/settings/returns") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -89,7 +89,7 @@ export function Sidebar() {
 
         <Link 
           href="/invoices" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname === "/invoices" 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -101,7 +101,7 @@ export function Sidebar() {
 
         <Link 
           href="/customers" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors mt-4 ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors mt-4 ${
             pathname.startsWith("/customers") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -113,7 +113,7 @@ export function Sidebar() {
 
         <Link 
           href="/items" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname.startsWith("/items") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -125,7 +125,7 @@ export function Sidebar() {
         
         <Link 
           href="/stock" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname.startsWith("/stock") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -137,7 +137,7 @@ export function Sidebar() {
         
         <Link 
           href="/settings/profile" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors mt-8 ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors mt-8 ${
             pathname.startsWith("/settings/profile") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -150,7 +150,7 @@ export function Sidebar() {
         {/* Example Changelog Link */}
         <Link 
           href="/changelog" 
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-base font-medium transition-colors ${
             pathname.startsWith("/changelog") 
               ? "bg-white/15 text-white shadow-sm" 
               : "text-slate-300 hover:bg-white/10 hover:text-white"

@@ -6,17 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, Play, Save, Plus, Trash2, AlertCircle, Loader2, CheckSquare, Search } from 'lucide-react';
-import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
+import toWords from 'number-to-words';
 
 export default function NewInvoicePage() {
   const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   
   // Holiday & Date Restriction State
   const [holidays, setHolidays] = useState<any[]>([]);
@@ -52,14 +52,19 @@ export default function NewInvoicePage() {
     });
   };
 
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch('/api/settings/profile');
+      if (res.ok) setProfile(await res.json());
+    } catch (e) {}
+  };
+
   const fetchCustomers = async () => {
     try {
       const res = await fetch('/api/customers');
       const data = await res.json();
       if (Array.isArray(data)) setCustomers(data);
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) {}
   };
 
   const fetchInventoryItems = async () => {
@@ -67,9 +72,7 @@ export default function NewInvoicePage() {
       const res = await fetch('/api/items');
       const data = await res.json();
       if (Array.isArray(data)) setInventoryItems(data);
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) {}
   };
 
   const fetchHolidays = async () => {
@@ -77,12 +80,11 @@ export default function NewInvoicePage() {
       const res = await fetch('/api/holidays');
       const data = await res.json();
       if (Array.isArray(data)) setHolidays(data);
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) {}
   };
 
   useEffect(() => {
+    fetchProfile();
     fetchCustomers();
     fetchInventoryItems();
     fetchHolidays();
@@ -93,12 +95,6 @@ export default function NewInvoicePage() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [applyWht, setApplyWht] = useState(true);
   
-  // Seller (Pre-filled as approved)
-  const [sellerNTNCNIC] = useState('7654321');
-  const [sellerBusinessName] = useState('My Company Pvt Ltd');
-  const [sellerProvince] = useState('Sindh');
-  const [sellerAddress] = useState('123 Business Avenue, Karachi');
-
   // Buyer
   const [buyerRegistrationType, setBuyerRegistrationType] = useState('Registered');
   const [buyerNTNCNIC, setBuyerNTNCNIC] = useState('');
@@ -128,7 +124,6 @@ export default function NewInvoicePage() {
       .map(i => ({
         ...i,
         quantity: 1,
-        // use defaultRate from DB
         rate: parseFloat(i.defaultRate) || 0
       }));
     
@@ -150,13 +145,11 @@ export default function NewInvoicePage() {
     const val = e.target.value;
     setBuyerNTNCNIC(val);
     
-    // Auto-fill logic
     const found = customers.find(c => c.ntnOrCnic === val);
     if (found) {
       setNtnNotFound(false);
       setBuyerBusinessName(found.name);
       setBuyerRegistrationType(found.isRegistered ? 'Registered' : 'Unregistered');
-      
       const defaultAddress = found.addresses?.[0];
       if (defaultAddress) {
         setBuyerProvince(defaultAddress.province || '');
@@ -167,14 +160,18 @@ export default function NewInvoicePage() {
     }
   };
 
-  const handleBusinessNameSelect = (name: string) => {
+  const handleBusinessNameSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const name = e.target.value;
+    if (name === 'ADD_NEW') {
+      setShowAddCustomerModal(true);
+      return;
+    }
     const found = customers.find(c => c.name === name);
     if (found) {
       setBuyerBusinessName(found.name);
       setBuyerNTNCNIC(found.ntnOrCnic);
       setNtnNotFound(false);
       setBuyerRegistrationType(found.isRegistered ? 'Registered' : 'Unregistered');
-      
       const defaultAddress = found.addresses?.[0];
       if (defaultAddress) {
         setBuyerProvince(defaultAddress.province || '');
@@ -197,7 +194,6 @@ export default function NewInvoicePage() {
         const created = await res.json();
         await fetchCustomers();
         
-        // Auto-select the newly created customer
         setBuyerNTNCNIC(created.ntnOrCnic);
         setBuyerBusinessName(created.name);
         setBuyerRegistrationType(created.isRegistered ? 'Registered' : 'Unregistered');
@@ -221,8 +217,8 @@ export default function NewInvoicePage() {
     return {
       invoiceType,
       invoiceDate,
-      sellerNTNCNIC: '7654321', // In real app, fetch from session/business unit
-      sellerBusinessName: 'My Company Pvt Ltd',
+      sellerNTNCNIC: profile?.ntn || '7654321', 
+      sellerBusinessName: profile?.name || 'My Company Pvt Ltd',
       sellerProvince: 'Sindh',
       sellerAddress: '123 Business Avenue, Karachi',
       
@@ -232,7 +228,7 @@ export default function NewInvoicePage() {
       buyerProvince,
       buyerAddress,
       
-      scenarioId: 'SN001', // Sandbox only
+      scenarioId: 'SN001',
       items: items.map(item => {
         const qty = Number(item.quantity || 0);
         const rate = Number(item.rate || 0);
@@ -247,7 +243,7 @@ export default function NewInvoicePage() {
           productDescription: item.name,
           rate: `${taxRate}%`,
           uoM: item.uom,
-          quantity: Number(qty.toFixed(4)), // Qty can sometimes have 4 decimals
+          quantity: Number(qty.toFixed(4)), 
           totalValues: totalValue,
           valueSalesExcludingST: valueExclTax,
           fixedNotifiedValueOrRetailPrice: 0,
@@ -294,7 +290,6 @@ export default function NewInvoicePage() {
   };
 
   const handleDryRunVerify = () => {
-    // Validations
     if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
       showMessage('error', 'Validation Error', "Please fill in all required buyer information (Name, Province, Address).");
       return;
@@ -303,18 +298,15 @@ export default function NewInvoicePage() {
       showMessage('error', 'Validation Error', "NTN/CNIC is required when Buyer is Registered.");
       return;
     }
-
     if (items.length === 0) {
       showMessage('error', 'Validation Error', "Please add at least one line item to the invoice.");
       return;
     }
-    
     if (hasNegativeStock && !negativeStockReason) {
       showMessage('error', 'Warning', "Please provide a reason for negative stock before verifying.");
       return;
     }
 
-    // Holiday & Sunday Validation Engine
     const validation = validateInvoiceDate(invoiceDate, holidays, forceIssueReason.trim().length >= 5, forceIssueReason);
     if (!validation.allowed) {
       setHolidayAlertMessage(validation.message || '');
@@ -332,11 +324,12 @@ export default function NewInvoicePage() {
     
     const payload = generateFbrPayload();
     if (forceIssueReason.trim().length >= 5) {
-      (payload as any).forceIssueReason = forceIssueReason.trim(); // Just append it to payload for visual testing
+      (payload as any).forceIssueReason = forceIssueReason.trim(); 
     }
     
     setTimeout(() => {
       setIsVerifying(false);
+      setIsSubmitting(false);
       showMessage(
         'success', 
         'Validation Success', 
@@ -373,9 +366,9 @@ export default function NewInvoicePage() {
       const data = await res.json();
       if (res.ok && data.success) {
         showMessage('success', 'Success', 'Invoice created and simulated FBR sync successfully!');
-        // Small delay so user can see success before redirect
         setTimeout(() => {
           window.open(`/api/invoices/${data.invoice.id}/pdf`, '_blank');
+          router.push('/invoices');
         }, 1500);
       } else {
         setIsSubmitting(false);
@@ -388,7 +381,6 @@ export default function NewInvoicePage() {
   };
 
   const handlePostToFBR = async () => {
-    // Validations
     if (!buyerBusinessName || !buyerProvince || !buyerAddress) {
       showMessage('error', 'Validation Error', "Please fill in all required buyer information (Name, Province, Address).");
       return;
@@ -397,13 +389,11 @@ export default function NewInvoicePage() {
       showMessage('error', 'Validation Error', "NTN/CNIC is required when Buyer is Registered.");
       return;
     }
-
     if (items.length === 0) {
       showMessage('error', 'Validation Error', "Please add at least one line item before posting.");
       return;
     }
     
-    // Holiday & Sunday Validation Engine
     const validation = validateInvoiceDate(invoiceDate, holidays, forceIssueReason.trim().length >= 5, forceIssueReason);
     if (!validation.allowed) {
       setHolidayAlertMessage(validation.message || '');
@@ -416,10 +406,8 @@ export default function NewInvoicePage() {
   };
 
   const runDuplicateCheck = async (actionType: 'dryRun' | 'post') => {
-    // Pre-flight Duplicate Check
     setIsSubmitting(true);
     try {
-      // Calculate total amount from items to send to the check endpoint
       const totalAmount = items.reduce((acc, item) => {
         const valueExcl = item.quantity * item.rate;
         const tax = (valueExcl * parseFloat(item.taxRate || 0)) / 100;
@@ -430,7 +418,7 @@ export default function NewInvoicePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          partyId: buyerNTNCNIC || buyerBusinessName, // Sending NTN or Name as identifier proxy
+          partyId: buyerNTNCNIC || buyerBusinessName,
           totalAmount,
           items: items.map(i => ({ itemId: i.id, quantity: i.quantity, rate: i.rate }))
         })
@@ -444,14 +432,13 @@ export default function NewInvoicePage() {
           setMatchedInvoiceDetails(checkData.matchedInvoice);
           setPendingAction(actionType);
           setShowDuplicateWarning(true);
-          return; // Wait for user decision
+          return;
         }
       }
     } catch (e) {
       console.error("Duplicate check failed", e);
     }
     
-    // If no duplicate or check failed, proceed normally
     if (actionType === 'dryRun') {
       proceedWithDryRun();
     } else {
@@ -459,15 +446,29 @@ export default function NewInvoicePage() {
     }
   };
 
+  // Calculations for display
+  const totQty = items.reduce((a, i) => a + Number(i.quantity || 0), 0);
+  const totExcl = items.reduce((a, i) => a + (Number(i.quantity || 0) * Number(i.rate || 0)), 0);
+  const totStax = items.reduce((a, i) => a + ((Number(i.quantity || 0) * Number(i.rate || 0) * Number(i.taxRate || 0)) / 100), 0);
+  const grand = totExcl + totStax;
+  const whtAmount = applyWht ? grand * 0.001 : 0;
+  const finalAmount = grand + whtAmount;
+
+  const intP = Math.floor(finalAmount);
+  const decP = Math.round((finalAmount - intP) * 100);
+  const words = toWords.toWords(intP).toUpperCase() + ' RUPEES AND ' +
+    (decP > 0 ? toWords.toWords(decP).toUpperCase() + ' PAISE' : 'ZERO PAISE') + ' ONLY';
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-slate-200 font-sans text-slate-900 pb-20">
       
-      {/* Add Customer Modal */}
+      {/* Modals remain structurally the same */}
       {showAddCustomerModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-slate-900 mb-4">Add New Customer</h3>
-            
             <div className="space-y-4">
               <div>
                 <Label>Business Name</Label>
@@ -488,21 +489,19 @@ export default function NewInvoicePage() {
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 md:col-span-1">
+                <div>
                   <Label>Province</Label>
                   <Input value={newCustomer.province} onChange={e => setNewCustomer({...newCustomer, province: e.target.value})} placeholder="e.g. Sindh" />
                 </div>
-                <div className="col-span-2 md:col-span-1">
+                <div>
                   <Label>Address</Label>
                   <Input value={newCustomer.address} onChange={e => setNewCustomer({...newCustomer, address: e.target.value})} placeholder="e.g. Karachi" />
                 </div>
               </div>
-              
               <div className="flex gap-3 justify-end pt-4">
                 <Button variant="outline" onClick={() => setShowAddCustomerModal(false)}>Cancel</Button>
                 <Button onClick={handleSaveNewCustomer} disabled={isSavingCustomer || !newCustomer.name || !newCustomer.ntnOrCnic} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  {isSavingCustomer ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save Customer
+                  {isSavingCustomer ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save
                 </Button>
               </div>
             </div>
@@ -510,462 +509,348 @@ export default function NewInvoicePage() {
         </div>
       )}
 
-      {/* Holiday / Date Override Modal */}
       {showHolidayModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-[55] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-amber-500 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-amber-500">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              Date Restriction Warning
+              <AlertCircle className="h-5 w-5 text-amber-500" /> Date Restriction
             </h3>
             <p className="text-sm text-slate-600 mb-4">{holidayAlertMessage}</p>
             <div className="space-y-2">
               <Label>Reason for Force Issue</Label>
-              <Input 
-                placeholder="Enter valid reason (min 5 characters)..." 
-                value={forceIssueReason}
-                onChange={e => setForceIssueReason(e.target.value)}
-                className="focus:ring-amber-500/20 focus:border-amber-500"
-              />
+              <Input placeholder="Enter reason..." value={forceIssueReason} onChange={e => setForceIssueReason(e.target.value)} />
             </div>
             <div className="flex gap-3 justify-end pt-4">
-              <Button variant="outline" onClick={() => {
-                setShowHolidayModal(false);
-                setPendingAction(null);
-                setForceIssueReason(''); // Reset if they cancel
-              }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowHolidayModal(false); setPendingAction(null); }}>Cancel</Button>
               <Button onClick={() => {
                 setShowHolidayModal(false);
                 if (pendingAction === 'dryRun') handleDryRunVerify();
                 if (pendingAction === 'post') handlePostToFBR();
-              }} disabled={forceIssueReason.trim().length < 5} className="bg-amber-500 hover:bg-amber-600 text-white">
-                Proceed Anyway
-              </Button>
+              }} disabled={forceIssueReason.trim().length < 5} className="bg-amber-500 text-white">Proceed</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Duplicate Warning Modal */}
       {showDuplicateWarning && (
         <div className="fixed inset-0 bg-slate-900/50 z-[55] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-red-500 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 border-t-4 border-red-500">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              Duplicate Invoice Alert!
+              <AlertCircle className="h-5 w-5 text-red-500" /> Duplicate Alert!
             </h3>
-            <p className="text-sm text-slate-600 mb-4 font-medium">
-              Ye 2 invoices same ho rahi hain. Is buyer ki is maheene mein bilkul aisi hi same amount ki invoice pehle se ban chuki hai.
-            </p>
-            
-            {matchedInvoiceDetails && (
-              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4 text-xs text-red-800 space-y-1">
-                <p><span className="font-bold">Match Found:</span></p>
-                <p>Invoice Ref: {matchedInvoiceDetails.id}</p>
-                <p>Date/Time: {new Date(matchedInvoiceDetails.createdAt).toLocaleString()}</p>
-                {matchedInvoiceDetails.fbrIrn && <p>FBR IRN: {matchedInvoiceDetails.fbrIrn}</p>}
-                <p>Amount: Rs {matchedInvoiceDetails.totalAmount}</p>
-              </div>
-            )}
-
-            <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-2 rounded border">
-              FBR API does not prevent exact duplicate submissions. Are you absolutely sure you want to {pendingAction === 'dryRun' ? 'dry-run' : 'post'} this as a NEW invoice?
-            </p>
+            <p className="text-sm text-slate-600 mb-4 font-medium">Ye invoice duplicate lag rahi hai.</p>
             <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => {
-                setShowDuplicateWarning(false);
-                setPendingAction(null);
-                setMatchedInvoiceDetails(null);
-              }}>
-                No, Cancel
-              </Button>
-              <Button onClick={() => pendingAction === 'dryRun' ? proceedWithDryRun() : proceedWithPost()} className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                Yes, {pendingAction === 'dryRun' ? 'Dry Run' : 'Post'} Anyway
-              </Button>
+              <Button variant="outline" onClick={() => { setShowDuplicateWarning(false); setPendingAction(null); }}>Cancel</Button>
+              <Button onClick={() => pendingAction === 'dryRun' ? proceedWithDryRun() : proceedWithPost()} className="bg-red-600 text-white">Post Anyway</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Item Picker Modal */}
       {showItemPicker && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full p-6 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-[var(--primary)]" />
-                Select Items to Add
-              </h3>
+            <div className="flex justify-between mb-4">
+              <h3 className="font-bold flex items-center gap-2"><CheckSquare className="h-5 w-5 text-blue-600"/> Select Items</h3>
             </div>
-            
             <div className="relative mb-4">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <input 
-                type="text"
-                placeholder="Search by name or HS Code..."
-                value={itemSearchQuery}
-                onChange={e => setItemSearchQuery(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]"
-              />
+              <input type="text" placeholder="Search..." value={itemSearchQuery} onChange={e => setItemSearchQuery(e.target.value)} className="w-full h-9 pl-9 pr-3 border rounded-md text-sm" />
             </div>
-
-            <div className="flex-1 overflow-y-auto mb-4 border rounded-md border-slate-100">
+            <div className="flex-1 overflow-y-auto mb-4 border rounded-md">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 border-b border-slate-100 text-slate-600 sticky top-0">
+                <thead className="bg-slate-50 border-b sticky top-0">
                   <tr>
                     <th className="px-4 py-2 w-10"></th>
-                    <th className="px-4 py-2 font-medium">Item Details</th>
-                    <th className="px-4 py-2 font-medium text-center">In Stock</th>
-                    <th className="px-4 py-2 font-medium text-right">Unit Price</th>
+                    <th className="px-4 py-2">Item</th>
+                    <th className="px-4 py-2 text-center">Stock</th>
+                    <th className="px-4 py-2 text-right">Price</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {inventoryItems.filter(i => i.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) || i.hsCode.includes(itemSearchQuery)).map(item => {
+                <tbody className="divide-y">
+                  {inventoryItems.filter(i => i.name.toLowerCase().includes(itemSearchQuery.toLowerCase())).map(item => {
                     const isSelected = selectedItemsFromPicker.includes(item.id);
                     return (
-                      <tr 
-                        key={item.id} 
-                        className={`cursor-pointer hover:bg-slate-50 ${isSelected ? 'bg-emerald-50/50' : ''}`}
-                        onClick={() => {
-                          if (isSelected) setSelectedItemsFromPicker(selectedItemsFromPicker.filter(id => id !== item.id));
-                          else setSelectedItemsFromPicker([...selectedItemsFromPicker, item.id]);
-                        }}
-                      >
+                      <tr key={item.id} className="cursor-pointer hover:bg-slate-50" onClick={() => {
+                        if (isSelected) setSelectedItemsFromPicker(selectedItemsFromPicker.filter(id => id !== item.id));
+                        else setSelectedItemsFromPicker([...selectedItemsFromPicker, item.id]);
+                      }}>
+                        <td className="px-4 py-2"><input type="checkbox" checked={isSelected} readOnly /></td>
                         <td className="px-4 py-2">
-                          <input type="checkbox" checked={isSelected} readOnly className="h-4 w-4 text-[var(--primary)] rounded border-slate-300 focus:ring-[var(--primary)]" />
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="font-medium text-slate-900">{item.name} {item.internalName ? `(${item.internalName})` : ''}</div>
+                          <div className="font-medium">{item.name}</div>
                           <div className="text-xs text-slate-500">HS: {item.hsCode} | UOM: {item.uom}</div>
                         </td>
-                        <td className="px-4 py-2 text-center">
-                          <Badge variant="outline" className={parseFloat(item.stockQty) <= 0 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}>
-                            {parseFloat(item.stockQty)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-2 text-right font-medium">Rs {parseFloat(item.defaultRate).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-center">{parseFloat(item.stockQty)}</td>
+                        <td className="px-4 py-2 text-right">Rs {parseFloat(item.defaultRate).toLocaleString()}</td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
             </div>
-            
-            <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
+            <div className="flex gap-3 justify-end pt-2">
               <Button variant="outline" onClick={() => setShowItemPicker(false)}>Cancel</Button>
-              <Button onClick={confirmItemSelection} disabled={selectedItemsFromPicker.length === 0} className="bg-[var(--primary)] hover:opacity-90 text-white">
-                Add {selectedItemsFromPicker.length} Items
-              </Button>
+              <Button onClick={confirmItemSelection} disabled={selectedItemsFromPicker.length===0} className="bg-blue-600 text-white">Add Items</Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Message/Alert Modal */}
       {messageModal.show && (
         <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full overflow-hidden flex flex-col">
-            <div className={`px-6 py-4 border-b flex items-center gap-3 ${
-              messageModal.type === 'success' ? 'bg-emerald-50 border-emerald-100' : 
-              messageModal.type === 'error' ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'
-            }`}>
-              {messageModal.type === 'success' && <CheckSquare className="h-6 w-6 text-emerald-600" />}
-              {messageModal.type === 'error' && <AlertCircle className="h-6 w-6 text-red-600" />}
-              {messageModal.type === 'info' && <FileText className="h-6 w-6 text-blue-600" />}
-              <h3 className={`text-lg font-bold ${
-                messageModal.type === 'success' ? 'text-emerald-900' : 
-                messageModal.type === 'error' ? 'text-red-900' : 'text-blue-900'
-              }`}>
-                {messageModal.title}
-              </h3>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              <p className="text-slate-700 mb-4">{messageModal.message}</p>
-              {messageModal.payload && (
-                <div className="bg-slate-900 rounded-md p-4 overflow-x-auto">
-                  <pre className="text-xs text-emerald-400 font-mono">
-                    {messageModal.payload}
-                  </pre>
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-slate-100 flex justify-end bg-slate-50">
-              <Button onClick={() => setMessageModal({...messageModal, show: false})} className={
-                messageModal.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 
-                messageModal.type === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-              }>
-                Close
-              </Button>
-            </div>
+          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full p-6">
+            <h3 className="font-bold text-lg mb-2">{messageModal.title}</h3>
+            <p className="text-slate-700 mb-4">{messageModal.message}</p>
+            {messageModal.payload && (
+              <pre className="text-xs bg-slate-900 text-emerald-400 p-4 rounded overflow-auto max-h-[50vh]">{messageModal.payload}</pre>
+            )}
+            <div className="flex justify-end mt-4"><Button onClick={() => setMessageModal({...messageModal, show: false})}>Close</Button></div>
           </div>
         </div>
       )}
 
-      {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      {/* Sticky Top Navbar */}
+      <header className="bg-white border-b border-slate-300 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-[950px] mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
-              <FileText className="text-white h-4 w-4" />
-            </div>
-            <h1 className="text-lg font-semibold text-slate-800 tracking-tight">Create Invoice (FBR Payload)</h1>
+            <h1 className="text-md font-semibold text-slate-700">Invoice Editor</h1>
           </div>
-          
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="border-slate-300 text-slate-700 hover:bg-slate-50"
-              onClick={handleDryRunVerify}
-              disabled={isVerifying || isSubmitting}
-            >
-              <Play className="mr-2 h-4 w-4 text-blue-600" />
-              {isVerifying ? "Verifying..." : "Dry Run"}
+            <Button variant="outline" className="h-8 text-xs border-slate-300" onClick={handleDryRunVerify} disabled={isVerifying || isSubmitting}>
+              <Play className="mr-1 h-3 w-3 text-blue-600" /> {isVerifying ? "Verifying..." : "Dry Run"}
             </Button>
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed" 
-              onClick={handlePostToFBR}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            <Button className="h-8 text-xs bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={handlePostToFBR} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
               {isSubmitting ? "Posting..." : "Post to FBR"}
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        
-        {/* Header Info */}
-        <Card className="bg-white border-slate-200 shadow-sm rounded-xl">
-          <CardHeader className="pb-4 border-b border-slate-100">
-            <CardTitle className="text-lg font-semibold text-slate-800">1. Invoice Header</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <Label htmlFor="invoiceType" className="text-slate-700">Invoice Type</Label>
-              <Select value={invoiceType} onValueChange={(v) => v && setInvoiceType(v)}>
-                <SelectTrigger className="bg-slate-50 border-slate-200">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sale Invoice">Sale Invoice</SelectItem>
-                  <SelectItem value="Debit Note">Debit Note</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* A4 Canvas */}
+      <main className="max-w-[950px] mx-auto mt-8 px-4">
+        <div className="bg-white shadow-2xl shadow-slate-300/50 rounded-sm p-10 md:p-14 min-h-[1100px] relative border border-slate-200">
+          
+          {/* Section 1: Header */}
+          <div className="flex justify-between items-start mb-6 border-b border-black pb-8">
+            <div className="w-[100px] shrink-0">
+               <div className="h-[80px] w-[80px] bg-slate-50 flex items-center justify-center text-[#1a3f7a] font-bold text-3xl border border-slate-200 rounded">
+                 {profile?.logoUrl ? <img src={profile.logoUrl} className="max-w-full max-h-full" alt="Logo" /> : profile?.name?.[0]?.toUpperCase()}
+               </div>
+               {profile && <div className="text-[9px] font-bold text-[#1a3f7a] mt-1 text-center uppercase">{profile.name}</div>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoiceDate">Invoice Date</Label>
-              <Input id="invoiceDate" type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
-            </div>
-            <div className="space-y-2 flex items-center justify-between border rounded-md p-3 bg-slate-50 md:col-span-2 border-slate-200">
-              <div>
-                <Label className="text-sm font-semibold cursor-pointer" onClick={() => setApplyWht(!applyWht)}>Apply W.H.T. 236G (0.10%)</Label>
-                <p className="text-xs text-slate-500">Enable this to apply Withholding Tax on the final invoice PDF.</p>
-              </div>
-              <input type="checkbox" checked={applyWht} onChange={(e) => setApplyWht(e.target.checked)} className="h-5 w-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Seller Info (Pre-filled) */}
-        <Card className="bg-white border-slate-200 shadow-sm rounded-xl bg-slate-50/50">
-          <CardHeader className="pb-4 border-b border-slate-100">
-            <CardTitle className="text-lg font-semibold text-slate-800 flex justify-between">
-              <span>2. Seller Information</span>
-              <span className="text-xs text-slate-400 font-normal">Auto-filled from settings</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-4 gap-4 opacity-70">
-            <div className="space-y-1">
-              <Label className="text-xs">Seller NTN</Label>
-              <Input value={sellerNTNCNIC} disabled className="bg-slate-100" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Business Name</Label>
-              <Input value={sellerBusinessName} disabled className="bg-slate-100" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Province</Label>
-              <Input value={sellerProvince} disabled className="bg-slate-100" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Address</Label>
-              <Input value={sellerAddress} disabled className="bg-slate-100" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Buyer Info */}
-        <Card className="bg-white border-slate-200 shadow-sm rounded-xl">
-          <CardHeader className="pb-4 border-b border-slate-100">
-            <CardTitle className="text-lg font-semibold text-slate-800">3. Buyer Information</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="buyerRegistrationType">Registration Type</Label>
-              <Select value={buyerRegistrationType} onValueChange={(v) => v && setBuyerRegistrationType(v)}>
-                <SelectTrigger id="buyerRegistrationType">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Registered">Registered</SelectItem>
-                  <SelectItem value="Unregistered">Unregistered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="buyerNTNCNIC">Buyer NTN / CNIC</Label>
-              <Input id="buyerNTNCNIC" placeholder="7-digit NTN" value={buyerNTNCNIC} onChange={handleNTNChange} />
-              {ntnNotFound && (
-                <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                  <AlertCircle className="h-3 w-3 text-amber-500" />
-                  Not found. 
-                  <button onClick={() => { setNewCustomer({ ...newCustomer, ntnOrCnic: buyerNTNCNIC }); setShowAddCustomerModal(true); }} className="text-blue-600 hover:underline font-medium">Add new</button>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="buyerBusinessName">Business Name</Label>
-              <Combobox 
-                options={customers.map(c => ({ label: c.name, value: c.name }))}
-                value={buyerBusinessName}
-                onChange={handleBusinessNameSelect}
-                onAdd={(name) => {
-                  setNewCustomer({ ...newCustomer, name, ntnOrCnic: buyerNTNCNIC });
-                  setShowAddCustomerModal(true);
-                }}
-                placeholder="Select or add business"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="buyerProvince">Province</Label>
-              <Input id="buyerProvince" placeholder="e.g. Sindh" value={buyerProvince} onChange={e => setBuyerProvince(e.target.value)} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="buyerAddress">Address</Label>
-              <Input id="buyerAddress" placeholder="Complete address" value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Line Items */}
-        <Card className="bg-white border-slate-200 shadow-sm rounded-xl overflow-visible">
-          <CardHeader className="pb-4 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50 rounded-t-xl">
-            <CardTitle className="text-lg font-semibold text-slate-800">4. Line Items</CardTitle>
-            <Button onClick={openItemPicker} variant="outline" size="sm" className="h-8 border-[var(--primary)]/30 text-[var(--primary)] bg-emerald-50 hover:bg-emerald-100">
-              <Plus className="mr-1 h-3 w-3" /> Select Items
-            </Button>
-          </CardHeader>
-          <div className="overflow-x-auto min-h-[200px]">
-            <Table>
-              <TableHeader className="bg-slate-50 text-slate-600">
-                <TableRow>
-                  <TableHead className="w-10">#</TableHead>
-                  <TableHead className="min-w-[250px]">Item Details</TableHead>
-                  <TableHead className="w-32">Qty</TableHead>
-                  <TableHead className="w-32">Rate (Rs)</TableHead>
-                  <TableHead className="w-32 text-right">Value</TableHead>
-                  <TableHead className="w-24 text-right">Tax</TableHead>
-                  <TableHead className="w-32 text-right">Total</TableHead>
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-slate-100">
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-slate-500">
-                      No items added yet. Click <strong>Select Items</strong> to add products from your inventory.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item, index) => {
-                    const qty = item.quantity || 0;
-                    const rate = item.rate || 0;
-                    const taxRate = parseFloat(item.taxRate) || 0;
-                    const valueExclTax = qty * rate;
-                    const taxAmount = (valueExclTax * taxRate) / 100;
-                    const totalValue = valueExclTax + taxAmount;
-                    
-                    const currentStock = parseFloat(item.stockQty);
-                    const remainingStock = currentStock - qty;
-                    const isNegative = remainingStock < 0;
-
-                    return (
-                      <TableRow key={index} className="align-top hover:bg-slate-50/50">
-                        <TableCell className="pt-4 font-medium text-slate-500">{index + 1}</TableCell>
-                        <TableCell className="pt-4 space-y-1">
-                          <div className="font-semibold text-slate-800">{item.name} {item.internalName ? <span className="font-normal text-slate-500 text-xs">({item.internalName})</span> : ''}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-2">
-                            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 px-1 py-0">{item.hsCode}</Badge>
-                            <span>{item.uom}</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-[10px] uppercase text-emerald-600 bg-emerald-50 px-1 rounded">{item.saleType.split(' ')[0]}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="pt-3">
-                          <div className="relative flex flex-col gap-1.5">
-                            <Input 
-                              type="number" 
-                              min="1"
-                              value={item.quantity || ''} 
-                              onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)} 
-                              className="h-9 text-sm focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
-                            />
-                            <div className={`text-[10px] px-1.5 py-0.5 rounded flex items-center justify-between border ${isNegative ? 'bg-red-50 border-red-200 text-red-700 font-medium' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
-                              <span>Stock: {currentStock}</span>
-                              <span>Rem: {remainingStock}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="pt-3">
-                          <Input 
-                            type="number" 
-                            value={item.rate || ''} 
-                            onChange={(e) => handleItemChange(index, 'rate', parseFloat(e.target.value) || 0)} 
-                            className="h-9 text-sm focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]" 
-                          />
-                        </TableCell>
-                        <TableCell className="pt-4 text-right font-medium text-slate-700">
-                          {valueExclTax.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="pt-4 text-right">
-                          <div className="text-sm font-medium text-slate-700">{taxAmount.toLocaleString()}</div>
-                          <div className="text-[10px] text-slate-400">@{taxRate}%</div>
-                        </TableCell>
-                        <TableCell className="pt-4 text-right font-bold text-[var(--primary)]">
-                          {totalValue.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="pt-3 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)} className="h-9 w-9 text-slate-400 hover:text-red-500 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
             
-            {hasNegativeStock && (
-              <div className="p-4 bg-red-50/50 border-t border-red-100 m-4 rounded-lg flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-2 text-red-700 font-medium text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  Warning: Some items will result in negative stock. Please provide a reason below.
-                </div>
-                <Input 
-                  required
-                  placeholder="e.g. Stock received but purchase invoice pending..."
-                  value={negativeStockReason}
-                  onChange={e => setNegativeStockReason(e.target.value)}
-                  className="bg-white border-red-200 focus:ring-red-500/20 focus:border-red-500"
-                />
-              </div>
-            )}
-          </div>
-        </Card>
+            <div className="flex-1 text-center px-4">
+               <h1 className="text-2xl font-bold uppercase tracking-wide mb-1 text-[#1a3f7a]">{profile?.name || 'COMPANY NAME PVT LTD'}</h1>
+               <div className="text-xs text-slate-800 space-y-0.5">
+                 <p><span className="font-bold">NTN:</span> {profile?.ntn || '1234567-8'}</p>
+                 <p><span className="font-bold">STRN:</span> {profile?.strn || '11-90-9999-329-55'}</p>
+                 <p className="text-slate-600 text-[11px] mt-1">PLOT No. F - 96, OFF HUB RIVER ROAD, SITE, Karachi West</p>
+               </div>
+            </div>
 
+            <div className="w-[120px] text-right shrink-0 mt-2">
+               <div className="bg-slate-200 px-3 py-1.5 inline-block font-bold text-[11px] tracking-wider uppercase text-slate-800 border border-slate-300">
+                 SALES TAX INVOICE
+               </div>
+            </div>
+          </div>
+
+          {/* Section 2: Buyer & Meta */}
+          <div className="flex justify-between gap-8 mb-8">
+             {/* Buyer Info */}
+             <div className="flex-1 max-w-sm">
+                <h3 className="text-[10px] font-bold uppercase text-slate-400 mb-2 border-b border-slate-100 pb-1">Billed To</h3>
+                
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">NTN / CNIC</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={buyerNTNCNIC} 
+                        onChange={handleNTNChange} 
+                        placeholder="Search NTN..." 
+                        className="h-7 text-xs bg-slate-50 border-slate-200 font-mono shadow-inner w-32" 
+                      />
+                      {ntnNotFound && <span className="text-[10px] text-amber-600 self-center font-medium bg-amber-50 px-2 py-0.5 rounded">New Buyer!</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Business Name / Name</Label>
+                    <Select value={buyerBusinessName} onValueChange={(v) => handleBusinessNameSelect({target: {value: v}} as any)}>
+                      <SelectTrigger className="h-7 text-xs bg-slate-50 border-slate-200 shadow-inner">
+                        <SelectValue placeholder="Select or type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        <SelectItem value="ADD_NEW" className="text-blue-600 font-bold">+ Add New Customer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Address & Province</Label>
+                    <div className="flex gap-2">
+                      <Input value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} placeholder="Address" className="h-7 text-xs bg-slate-50 border-slate-200 flex-1 shadow-inner" />
+                      <Input value={buyerProvince} onChange={e => setBuyerProvince(e.target.value)} placeholder="Prov" className="h-7 text-xs w-20 bg-slate-50 border-slate-200 shadow-inner" />
+                    </div>
+                  </div>
+                </div>
+             </div>
+
+             {/* Invoice Meta */}
+             <div className="w-56">
+                <h3 className="text-[10px] font-bold uppercase text-slate-400 mb-2 border-b border-slate-100 pb-1">Invoice Details</h3>
+                <div className="space-y-3 bg-slate-50 p-3 rounded border border-slate-100">
+                   <div className="flex flex-col">
+                     <Label className="text-[9px] uppercase font-bold text-slate-500 mb-1">Invoice Date</Label>
+                     <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="h-7 text-xs bg-white border-slate-200 shadow-inner" />
+                   </div>
+                   <div className="flex flex-col">
+                     <Label className="text-[9px] uppercase font-bold text-slate-500 mb-1">Invoice Type</Label>
+                     <Select value={invoiceType} onValueChange={(v) => v && setInvoiceType(v)}>
+                       <SelectTrigger className="h-7 text-xs bg-white border-slate-200 shadow-inner">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="Sale Invoice">Sale Invoice</SelectItem>
+                         <SelectItem value="Debit Note">Debit Note</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                     <input type="checkbox" checked={applyWht} onChange={e => setApplyWht(e.target.checked)} className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />
+                     <Label className="text-[10px] font-bold text-slate-700">Apply W.H.T (0.10%)</Label>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          {/* Section 3: Line Items Table */}
+          <div className="border border-black">
+             <table className="w-full text-xs text-left">
+               <thead className="bg-[#efefef] text-slate-900 border-b border-black">
+                  <tr>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-8 text-center text-[10px]">S.#</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold text-[10px]">Description</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-16 text-[10px]">HS Code</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-16 text-center text-[10px]">Qty</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-20 text-right text-[10px]">Unit Price</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-24 text-right text-[10px]">Value Excl.</th>
+                     <th className="px-2 py-1.5 border-r border-black font-bold w-20 text-right text-[10px]">Tax (18%)</th>
+                     <th className="px-2 py-1.5 font-bold w-24 text-right text-[10px]">Total</th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-black/20">
+                  {items.map((item, index) => {
+                    const qty = Number(item.quantity || 0);
+                    const rate = Number(item.rate || 0);
+                    const taxRate = Number(item.taxRate || 0);
+                    const excl = qty * rate;
+                    const tax = (excl * taxRate) / 100;
+                    const total = excl + tax;
+                    
+                    return (
+                      <tr key={index} className="group hover:bg-blue-50/50">
+                        <td className="px-2 py-1 border-r border-black text-center align-middle relative">
+                          <span className="group-hover:hidden">{index + 1}</span>
+                          <button onClick={() => handleRemoveItem(index)} className="hidden group-hover:block mx-auto text-red-500 hover:text-red-700">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </td>
+                        <td className="px-2 py-1 border-r border-black font-medium">{item.name}</td>
+                        <td className="px-2 py-1 border-r border-black font-mono text-[10px]">{item.hsCode}</td>
+                        <td className="px-0 py-0 border-r border-black align-middle">
+                          <input type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="w-full h-full px-2 py-1.5 bg-transparent text-center focus:outline-none focus:bg-blue-50 text-xs" />
+                        </td>
+                        <td className="px-0 py-0 border-r border-black align-middle">
+                          <input type="number" min="0" step="0.01" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="w-full h-full px-2 py-1.5 bg-transparent text-right focus:outline-none focus:bg-blue-50 text-xs" />
+                        </td>
+                        <td className="px-2 py-1.5 border-r border-black text-right bg-slate-50/30">{fmt(excl)}</td>
+                        <td className="px-2 py-1.5 border-r border-black text-right bg-slate-50/30">{fmt(tax)}</td>
+                        <td className="px-2 py-1.5 text-right font-medium bg-slate-50/30">{fmt(total)}</td>
+                      </tr>
+                    );
+                  })}
+                  
+                  {/* Add Item Row */}
+                  <tr>
+                    <td colSpan={8} className="p-0 border-t border-black">
+                      <button onClick={openItemPicker} className="w-full h-8 flex items-center justify-center gap-1 text-[11px] font-bold text-blue-600 bg-slate-50 hover:bg-blue-50 transition-colors">
+                        <Plus className="h-3 w-3" /> Click to Add Inventory Item
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  {/* Empty filler rows if items < 3 to keep layout height */}
+                  {Array.from({ length: Math.max(0, 3 - items.length) }).map((_, i) => (
+                     <tr key={`fill-${i}`} className="h-8 border-t border-black/20">
+                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
+                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
+                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
+                       <td className="border-r border-black"></td><td></td>
+                     </tr>
+                  ))}
+               </tbody>
+               
+               {/* TOTALS FOOTER */}
+               <tfoot className="border-t border-black bg-[#fafafa]">
+                 <tr>
+                   <td colSpan={3} className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">TOTALS:</td>
+                   <td className="px-2 py-2 border-r border-black text-center font-bold text-[11px]">{totQty.toFixed(2)}</td>
+                   <td className="px-2 py-2 border-r border-black"></td>
+                   <td className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">{fmt(totExcl)}</td>
+                   <td className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">{fmt(totStax)}</td>
+                   <td className="px-2 py-2 text-right font-bold text-[12px]">{fmt(grand)}</td>
+                 </tr>
+               </tfoot>
+             </table>
+          </div>
+
+          {/* Negative Stock Warning */}
+          {hasNegativeStock && (
+             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-xs">
+                <p className="font-bold text-red-700 flex items-center gap-1 mb-2"><AlertCircle className="h-4 w-4" /> Negative Stock Detected</p>
+                <Input value={negativeStockReason} onChange={e => setNegativeStockReason(e.target.value)} placeholder="Enter reason for allowing negative stock..." className="h-7 text-xs border-red-200 focus-visible:ring-red-500" />
+             </div>
+          )}
+
+          {/* Footer Totals & Words */}
+          <div className="flex justify-between items-start mt-8 pt-4">
+             <div className="flex-1 pr-12">
+                <div className="bg-slate-100 p-3 border border-slate-200">
+                  <span className="text-[10px] font-bold uppercase text-slate-500">Amount in Words:</span>
+                  <p className="text-xs font-bold mt-1 text-slate-800 leading-relaxed">{words}</p>
+                </div>
+             </div>
+             
+             <div className="w-[250px]">
+                <div className="space-y-2 text-xs">
+                  <div className={`flex justify-between pb-1 ${!applyWht ? 'border-b-2 border-black font-bold' : 'border-b border-slate-300'}`}>
+                    <span>Value Including Sales Tax</span>
+                    <span>{fmt(grand)}</span>
+                  </div>
+                  {applyWht && (
+                    <div className="flex justify-between pb-1 border-b-2 border-black font-bold">
+                      <span>W.H.T 236G (0.10%)</span>
+                      <span>{fmt(whtAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-1 text-sm font-bold text-[#1a3f7a]">
+                    <span>Total Invoice Value</span>
+                    <span>{fmt(finalAmount)}</span>
+                  </div>
+                </div>
+             </div>
+          </div>
+          
+          <div className="absolute bottom-8 left-0 right-0 text-center">
+            <div className="w-1/2 mx-auto border-t border-slate-300 mb-2"></div>
+            <p className="text-[9px] text-slate-500">This is a computer-generated FBR Digital Invoice template preview and does not require any signature.</p>
+          </div>
+
+        </div>
       </main>
+
     </div>
   );
 }
