@@ -12,15 +12,31 @@ export const metadata: Metadata = {
   description: "FBR compliant digital invoicing system",
 };
 
+export const dynamic = 'force-dynamic';
+
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PrintWrapper } from "@/components/layout/print-wrapper";
+import prisma from "@/lib/prisma";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  let themeColor = 'default';
+  try {
+    const business = await prisma.businessUnit.findFirst({ 
+      orderBy: { id: 'asc' },
+      select: { themeColor: true } 
+    });
+    if (business && business.themeColor) {
+      themeColor = business.themeColor;
+    }
+  } catch (e) {
+    console.error("Failed to load theme from DB", e);
+  }
+
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="font-sans h-full">
-        <ThemeProvider>
+        <ThemeProvider initialTheme={themeColor as any}>
           <PrintWrapper sidebar={<Sidebar />}>
             {children}
           </PrintWrapper>

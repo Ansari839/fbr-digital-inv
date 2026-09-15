@@ -2,192 +2,217 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Server, Database, Loader2, Edit2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Server, Database, Users, Loader2, Wallet, TrendingUp, ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function SuperAdminDashboard() {
-  const [clients, setClients] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
-
-  const fetchClients = async () => {
-    try {
-      const res = await fetch("/api/admin/clients");
-      if (res.ok) {
-        setClients(await res.json());
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchClients();
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/admin/stats");
+        if (res.ok) {
+          setStats(await res.json());
+        } else {
+          setError(`HTTP Error: ${res.status} ${res.statusText}`);
+        }
+      } catch (err: any) {
+        setError(`Fetch Error: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
   }, []);
 
-  const handleEdit = (client: any) => {
-    setEditingId(client.id);
-    setEditForm({
-      planTier: client.planTier,
-      maxStorageMb: client.maxStorageMb,
-      maxInvoicesPerMonth: client.maxInvoicesPerMonth,
-      isActive: client.isActive
-    });
-  };
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-100px)] items-center justify-center">
+        <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
-  const handleSave = async (id: string) => {
-    try {
-      const res = await fetch("/api/admin/clients", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...editForm })
-      });
-      if (res.ok) {
-        setEditingId(null);
-        fetchClients();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 text-red-600 p-4 rounded-md font-mono text-sm border border-red-200">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients & Quota Management</h1>
-          <p className="text-slate-500">Allocate Hostinger VPS resources and manage client packages</p>
-        </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700">Add New Client</Button>
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">SaaS Overview</h1>
+        <p className="text-slate-500 mt-1">Real-time metrics and revenue generation</p>
       </div>
 
-      <Card className="shadow-sm border-slate-200">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead>Client Name</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead>Storage Allocation</TableHead>
-              <TableHead>Invoice Quota</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
-                  <Loader2 className="h-6 w-6 text-indigo-500 animate-spin mx-auto" />
-                </TableCell>
-              </TableRow>
-            ) : clients.map((client) => {
-              const storagePercent = Math.min(100, (client.storageUsedMb / client.maxStorageMb) * 100);
-              const isEditing = editingId === client.id;
+      {stats && (
+        <>
+          {/* Colorful Premium Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* Revenue Card */}
+            <Card className="relative overflow-hidden border-0 shadow-lg group">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-600 to-indigo-600 z-0"></div>
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0 mix-blend-overlay"></div>
+              <CardContent className="p-6 relative z-10 text-white">
+                <div className="flex items-center justify-between pb-4">
+                  <p className="text-sm font-medium text-white/80">Monthly Recurring Revenue</p>
+                  <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl shadow-inner">
+                    <Wallet className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black">Rs {stats.monthlyIncome?.toLocaleString()}</div>
+                <p className="text-sm text-indigo-200 mt-2 flex items-center gap-1 font-medium">
+                  <TrendingUp className="h-4 w-4" /> +12.5% from last month
+                </p>
+              </CardContent>
+            </Card>
 
-              return (
-                <TableRow key={client.id} className="hover:bg-slate-50">
-                  <TableCell>
-                    <div className="font-semibold text-slate-900">{client.name}</div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">NTN: {client.ntn}</div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    {isEditing ? (
-                      <select 
-                        className="border border-slate-300 rounded p-1 text-sm bg-white"
-                        value={editForm.planTier}
-                        onChange={e => setEditForm({...editForm, planTier: e.target.value})}
-                      >
-                        <option value="Starter">Starter</option>
-                        <option value="Growth">Growth</option>
-                        <option value="Enterprise">Enterprise</option>
-                      </select>
-                    ) : (
-                      <Badge variant="outline" className="uppercase text-[10px] bg-slate-100">{client.planTier}</Badge>
-                    )}
-                  </TableCell>
+            {/* Clients Card */}
+            <Card className="relative overflow-hidden border-0 shadow-lg group">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-700 z-0"></div>
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0 mix-blend-overlay"></div>
+              <CardContent className="p-6 relative z-10 text-white">
+                <div className="flex items-center justify-between pb-4">
+                  <p className="text-sm font-medium text-white/80">Total Active Clients</p>
+                  <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl shadow-inner">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black">{stats.totalClients}</div>
+                <p className="text-sm text-teal-100 mt-2 flex items-center gap-1 font-medium">
+                  Across all pricing tiers
+                </p>
+              </CardContent>
+            </Card>
 
-                  <TableCell>
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="number" 
-                          className="w-20 h-8 text-sm" 
-                          value={editForm.maxStorageMb}
-                          onChange={e => setEditForm({...editForm, maxStorageMb: e.target.value})}
-                        />
-                        <span className="text-xs text-slate-500">MB</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5 w-40">
-                        <div className="flex justify-between text-xs text-slate-600">
-                          <span>{client.storageUsedMb.toFixed(1)} MB</span>
-                          <span className="font-medium text-slate-900">{client.maxStorageMb} MB</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${storagePercent > 80 ? 'bg-red-500' : 'bg-indigo-500'}`} 
-                            style={{ width: `${storagePercent}%` }} 
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </TableCell>
+            {/* Allocated Storage Card */}
+            <Card className="relative overflow-hidden border-0 shadow-lg group">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-600 z-0"></div>
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0 mix-blend-overlay"></div>
+              <CardContent className="p-6 relative z-10 text-white">
+                <div className="flex items-center justify-between pb-4">
+                  <p className="text-sm font-medium text-white/80">Dedicated Storage</p>
+                  <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl shadow-inner">
+                    <Database className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="text-3xl font-black">{Math.round(stats.totalAllocatedStorageMb / 1024)} <span className="text-xl font-bold">GB</span></div>
+                <p className="text-sm text-blue-100 mt-2 flex items-center gap-1 font-medium">
+                  Of {Math.round(stats.vpsTotalStorageMb / 1024)} GB Total VPS Capacity
+                </p>
+              </CardContent>
+            </Card>
 
-                  <TableCell>
-                    {isEditing ? (
-                      <Input 
-                        type="number" 
-                        className="w-24 h-8 text-sm" 
-                        value={editForm.maxInvoicesPerMonth}
-                        onChange={e => setEditForm({...editForm, maxInvoicesPerMonth: e.target.value})}
+            {/* Invoice Quota Card */}
+            <Card className="relative overflow-hidden border-0 shadow-lg group">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-600 z-0"></div>
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 z-0 mix-blend-overlay"></div>
+              <CardContent className="p-6 relative z-10 text-white">
+                <div className="flex items-center justify-between pb-4">
+                  <p className="text-sm font-medium text-white/80">Total Invoices Quota</p>
+                  <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl shadow-inner">
+                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-3xl font-black">{stats.totalMonthlyInvoiceQuota.toLocaleString()}</div>
+                <p className="text-sm text-orange-100 mt-2 flex items-center gap-1 font-medium">
+                  Allowed across all clients / month
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Revenue Chart */}
+            <Card className="col-span-1 lg:col-span-2 shadow-sm border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-slate-800">Revenue Growth</CardTitle>
+                <p className="text-sm text-slate-500">Monthly Recurring Revenue (MRR) projection</p>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full mt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                      <YAxis tickFormatter={(val) => `Rs ${val/1000}k`} axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: 'white' }}
+                        itemStyle={{ color: '#818cf8' }}
+                        formatter={(value: any) => [`Rs ${value?.toLocaleString()}`, 'Revenue']}
                       />
-                    ) : (
-                      <span className="text-sm font-medium">{client.maxInvoicesPerMonth} / mo</span>
-                    )}
-                  </TableCell>
+                      <Area type="monotone" dataKey="total" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <TableCell>
-                    {isEditing ? (
-                      <select 
-                        className="border border-slate-300 rounded p-1 text-sm bg-white"
-                        value={editForm.isActive ? "true" : "false"}
-                        onChange={e => setEditForm({...editForm, isActive: e.target.value === "true"})}
-                      >
-                        <option value="true">Active</option>
-                        <option value="false">Suspended</option>
-                      </select>
-                    ) : (
-                      <Badge variant="outline" className={client.isActive ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"}>
-                        {client.isActive ? "Active" : "Suspended"}
-                      </Badge>
-                    )}
-                  </TableCell>
-
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} className="h-8">Cancel</Button>
-                        <Button size="sm" className="h-8 bg-indigo-600" onClick={() => handleSave(client.id)}>Save</Button>
+            {/* Recent Clients List */}
+            <Card className="col-span-1 shadow-sm border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-slate-800">Recent Signups</CardTitle>
+                <p className="text-sm text-slate-500">Latest clients joined the platform</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {stats.recentClients?.map((client: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm
+                          ${client.planTier.toLowerCase() === 'enterprise' ? 'bg-orange-100 text-orange-700' : 
+                            client.planTier.toLowerCase() === 'growth' ? 'bg-indigo-100 text-indigo-700' : 
+                            'bg-emerald-100 text-emerald-700'}
+                        `}>
+                          {client.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{client.name}</p>
+                          <p className="text-xs font-medium text-slate-500">{client.planTier} Plan</p>
+                        </div>
                       </div>
-                    ) : (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600" onClick={() => handleEdit(client)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-indigo-600">{client.amount}</p>
+                        <p className="text-xs font-medium text-slate-500">/mo</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!stats.recentClients || stats.recentClients.length === 0) && (
+                    <div className="text-center py-8">
+                      <CheckCircle2 className="h-12 w-12 text-slate-200 mx-auto mb-3" />
+                      <p className="text-sm text-slate-500">No clients yet</p>
+                    </div>
+                  )}
+                </div>
+                
+                {stats.recentClients?.length > 0 && (
+                  <button className="w-full mt-8 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    View all clients <ArrowUpRight className="h-4 w-4" />
+                  </button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

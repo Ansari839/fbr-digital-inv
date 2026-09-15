@@ -37,16 +37,12 @@ const themeStyles = {
   }
 };
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeColor, setThemeColorState] = useState<ThemeColor>('default');
+export function ThemeProvider({ children, initialTheme = 'default' }: { children: React.ReactNode, initialTheme?: ThemeColor }) {
+  const [themeColor, setThemeColorState] = useState<ThemeColor>(initialTheme);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem('app-theme-color') as ThemeColor;
-    if (saved && themeStyles[saved]) {
-      setThemeColorState(saved);
-    }
   }, []);
 
   const setThemeColor = (color: ThemeColor) => {

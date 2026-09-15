@@ -16,7 +16,8 @@ export default function SettingsProfilePage() {
     name: '',
     ntn: '',
     strn: '',
-    logoUrl: ''
+    logoUrl: '',
+    themeColor: 'default'
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,8 +34,10 @@ export default function SettingsProfilePage() {
             name: data.name || '',
             ntn: data.ntn || '',
             strn: data.strn || '',
-            logoUrl: data.logoUrl || ''
+            logoUrl: data.logoUrl || '',
+            themeColor: data.themeColor || 'default'
           });
+          setThemeColor(data.themeColor || 'default');
         }
       } catch (error) {
         console.error('Error fetching profile', error);
@@ -178,7 +181,10 @@ export default function SettingsProfilePage() {
                 {themes.map((t) => (
                   <button
                     key={t.id}
-                    onClick={() => setThemeColor(t.id as any)}
+                    onClick={() => {
+                      setThemeColor(t.id as any);
+                      setBusiness({...business, themeColor: t.id});
+                    }}
                     className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                       themeColor === t.id ? 'border-[var(--primary)] bg-slate-50' : 'border-transparent hover:border-slate-200'
                     }`}

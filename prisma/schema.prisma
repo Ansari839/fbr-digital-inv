@@ -16,11 +16,14 @@ model BusinessUnit {
   
   // Quotas & Dedication
   planTier            String   @default("starter")
+  monthlyFee          Int      @default(0)
+  paymentStatus       String   @default("Paid") // Paid, Overdue, Unpaid
   maxInvoicesPerMonth Int      @default(100)
   maxStorageMb        Int      @default(500)
   storageUsedMb       Float    @default(0)
   dbConnectionString  String?
   isActive            Boolean  @default(true)
+  themeColor          String   @default("default")
 
   // FBR IRIS Credentials
   irisEnvironment     String   @default("SANDBOX") // SANDBOX or PRODUCTION
@@ -42,6 +45,16 @@ model User {
   businessUnitId String?
   businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
   createdAt      DateTime @default(now())
+  forcePasswordChange Boolean @default(true)
+  resetRequests  PasswordResetRequest[]
+}
+
+model PasswordResetRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   @default("PENDING") // PENDING, COMPLETED
+  createdAt DateTime @default(now())
 }
 
 model Party {
@@ -168,4 +181,30 @@ model Holiday {
   name        String
   description String?
   createdAt   DateTime @default(now())
+}
+
+model VpsConfig {
+  id          String   @id @default("default-vps")
+  hostname    String
+  ipAddress   String
+  provider    String
+  vCpu        String
+  ram         String
+  storageMb   Int      @default(100000) // Default 100GB
+  status      String   @default("Online")
+  startDate   String
+  renewalDate String
+  updatedAt   DateTime @updatedAt
+}
+
+model SmtpConfig {
+  id        String   @id @default("default-smtp")
+  host      String
+  port      Int      @default(587)
+  secure    Boolean  @default(false)
+  user      String
+  pass      String
+  fromEmail String
+  fromName  String   @default("FBR Digital Invoicing")
+  updatedAt DateTime @updatedAt
 }

@@ -41,6 +41,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           businessUnitId: user.businessUnitId,
+          forcePasswordChange: user.forcePasswordChange,
         };
       },
     }),
@@ -54,6 +55,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role as string;
         token.businessUnitId = user.businessUnitId;
+        token.forcePasswordChange = (user as any).forcePasswordChange;
       }
       return token;
     },
@@ -62,6 +64,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.businessUnitId = token.businessUnitId as string | null;
+        (session.user as any).forcePasswordChange = token.forcePasswordChange;
       }
       return session;
     },

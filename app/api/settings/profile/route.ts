@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // In a real app, this would be scoped to the authenticated user's business unit.
     // For now, we fetch the first one (or create one if none exists)
-    let business = await prisma.businessUnit.findFirst();
+    let business = await prisma.businessUnit.findFirst({
+      orderBy: { id: 'asc' }
+    });
     
     if (!business) {
       business = await prisma.businessUnit.create({
@@ -26,7 +30,7 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const data = await req.json();
-    const { id, name, ntn, strn, logoUrl } = data;
+    const { id, name, ntn, strn, logoUrl, themeColor } = data;
     
     if (!id) {
       return NextResponse.json({ error: 'Business Unit ID is required' }, { status: 400 });
@@ -38,7 +42,8 @@ export async function PATCH(req: Request) {
         name,
         ntn,
         strn,
-        logoUrl
+        logoUrl,
+        themeColor
       }
     });
 
