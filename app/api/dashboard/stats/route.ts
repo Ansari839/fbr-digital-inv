@@ -91,11 +91,31 @@ export async function GET(req: Request) {
       if (isFailed) monthlyStats[monthKey].Failed += 1;
     }
 
-    const chartData = Object.keys(monthlyStats).sort().map(k => monthlyStats[k]);
-    if (chartData.length === 0) {
-      // Dummy month if no data
-      const currentMonth = new Date().toLocaleString('default', { month: 'short' });
-      chartData.push({ name: currentMonth, Total: 0, Success: 0, Failed: 0 });
+    const chartData: any[] = [];
+    const sortedKeys = Object.keys(monthlyStats).sort();
+    let earliestDate = new Date();
+    earliestDate.setMonth(earliestDate.getMonth() - 5); // Ensure at least 6 months
+    
+    if (sortedKeys.length > 0) {
+      const firstDataMonth = new Date(sortedKeys[0] + '-01');
+      if (firstDataMonth < earliestDate) {
+        earliestDate = firstDataMonth;
+      }
+    }
+
+    const currentDate = new Date();
+    let d = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
+    
+    while (d <= currentDate || (d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth())) {
+      const monthKey = d.toISOString().substring(0, 7);
+      const monthName = d.toLocaleString('default', { month: 'short' });
+      
+      if (monthlyStats[monthKey]) {
+        chartData.push(monthlyStats[monthKey]);
+      } else {
+        chartData.push({ name: monthName, Total: 0, Success: 0, Failed: 0 });
+      }
+      d.setMonth(d.getMonth() + 1);
     }
 
     const recentInvoices = invoices.slice(0, 100).map(inv => {

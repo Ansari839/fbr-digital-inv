@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { FileText, CheckCircle, AlertCircle, Edit, Printer, Plus, Server, AlertTriangle, Loader2, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -344,16 +344,32 @@ export default function DashboardPage() {
                 <h2 className="text-[1.05rem] font-bold text-slate-800 tracking-tight mb-4">Monthly Analytics</h2>
                 <div className="flex-1 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats?.chartData || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                    <AreaChart data={stats?.chartData || []} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorFailed" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} dy={10} />
                       <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} dx={-10} />
-                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} />
+                      <RechartsTooltip 
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
                       <Legend verticalAlign="top" align="left" iconType="circle" wrapperStyle={{ fontSize: '11px', paddingBottom: '20px', paddingLeft: '15px', color: '#475569' }} />
-                      <Bar dataKey="Total" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
-                      <Bar dataKey="Success" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                      <Bar dataKey="Failed" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
-                    </BarChart>
+                      <Area type="monotone" dataKey="Total" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
+                      <Area type="monotone" dataKey="Success" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSuccess)" />
+                      <Area type="monotone" dataKey="Failed" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorFailed)" />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
