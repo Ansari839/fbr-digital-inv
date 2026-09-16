@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const items = await prisma.item.findMany({
-      where: { itemType: 'Physical' },
+      where: { 
+        itemType: 'Physical',
+        businessUnitId: (session.user as any).businessUnitId 
+      },
       include: {
         stockTransactions: {
           orderBy: { createdAt: 'asc' }
@@ -20,6 +32,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await req.json();
     
     if (!data.itemId || !data.quantity) {
@@ -29,6 +46,15 @@ export async function POST(req: Request) {
     const quantity = parseFloat(data.quantity);
     if (quantity <= 0) {
       return NextResponse.json({ error: 'Quantity must be greater than 0' }, { status: 400 });
+    }
+
+    // Verify item belongs to business unit
+    const item = await prisma.item.findFirst({
+      where: { id: data.itemId, businessUnitId: (session.user as any).businessUnitId }
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: 'Item not found or unauthorized' }, { status: 404 });
     }
 
     // Wrap in transaction to ensure consistency

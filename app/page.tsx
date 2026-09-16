@@ -314,7 +314,9 @@ export default function DashboardPage() {
                           <td className="px-4 py-3 flex gap-2 justify-center">
                             {activeTab === 'active' ? (
                               <>
-                                <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 text-slate-600 border-slate-200"><Printer className="h-3 w-3 mr-1" /> Print</Button>
+                                <Link href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                                  <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 text-slate-600 border-slate-200"><Printer className="h-3 w-3 mr-1" /> Print</Button>
+                                </Link>
                                 <Link href={`/invoices/${inv.id}`}>
                                   <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 text-slate-600 border-slate-200"><Edit className="h-3 w-3 mr-1" /> Edit</Button>
                                 </Link>

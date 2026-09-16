@@ -183,7 +183,7 @@ export function InvoicePDF({ invoice }: { invoice: any }) {
               <Text style={s.strnLbl}>STRN: </Text>{invoice.businessUnit?.strn || '11-90-9999-329-55'}
             </Text>
             <Text style={s.addressLine}>
-              PLOT No. F - 96, OFF HUB RIVER ROAD, SITE, Karachi West Site Town
+              {[invoice.businessUnit?.address, invoice.businessUnit?.province].filter(Boolean).join(', ') || 'Address not provided'}
             </Text>
           </View>
 
