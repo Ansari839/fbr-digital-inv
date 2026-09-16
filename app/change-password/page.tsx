@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,8 +45,8 @@ export default function ChangePasswordPage() {
         throw new Error(data.error || 'Failed to change password');
       }
 
-      // Hard refresh to reload the session and redirect to dashboard
-      window.location.href = '/';
+      // Log the user out so the JWT session is cleared, forcing them to login with new password
+      await signOut({ callbackUrl: '/login?message=Password updated successfully, please login again' });
     } catch (err: any) {
       setError(err.message);
       setIsLoading(false);

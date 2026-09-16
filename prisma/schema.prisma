@@ -13,6 +13,8 @@ model BusinessUnit {
   strn                String?
   name                String
   logoUrl             String?
+  province            String?
+  address             String?
   
   // Quotas & Dedication
   planTier            String   @default("starter")
@@ -34,6 +36,7 @@ model BusinessUnit {
   invoices            Invoice[]
   items               Item[]
   users               User[]
+  parties             Party[]
 }
 
 model User {
@@ -58,12 +61,14 @@ model PasswordResetRequest {
 }
 
 model Party {
-  id           String   @id @default(cuid())
-  ntnOrCnic    String
-  name         String
-  isRegistered Boolean
-  addresses    PartyAddress[]
-  invoices     Invoice[]
+  id             String   @id @default(cuid())
+  businessUnitId String?
+  ntnOrCnic      String
+  name           String
+  isRegistered   Boolean
+  addresses      PartyAddress[]
+  invoices       Invoice[]
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
 }
 
 model PartyAddress {

@@ -10,11 +10,11 @@ interface PrintWrapperProps {
 export function PrintWrapper({ children, sidebar }: PrintWrapperProps) {
   const pathname = usePathname();
   const isPrintPage = pathname?.startsWith("/print/");
-  const isLoginPage = pathname === "/login";
+  const isAuthPage = pathname === "/login" || pathname === "/forgot-password" || pathname === "/change-password";
   const isAdminPage = pathname?.startsWith("/admin");
 
-  // Print, Login, and Admin pages get a bare layout without the client sidebar
-  if (isPrintPage || isLoginPage || isAdminPage) {
+  // Print, Auth, and Admin pages get a bare layout without the client sidebar
+  if (isPrintPage || isAuthPage || isAdminPage) {
     return (
       <div className="min-h-screen bg-white h-full">
         {children}

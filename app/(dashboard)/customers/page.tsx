@@ -26,12 +26,28 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       const res = await fetch('/api/customers');
+      
+      if (res.status === 401) {
+        console.error("Unauthorized! Session might be stale.");
+        alert("Your session has expired or is invalid. Please log out and log back in to refresh it.");
+        setCustomers([]);
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
+      if (!res.ok) {
+        alert("API Error: " + JSON.stringify(data));
+        setCustomers([]);
+        setLoading(false);
+        return;
+      }
+
       if (Array.isArray(data)) {
         setCustomers(data);
       } else {
         setCustomers([]);
-        console.error('Expected array of customers, got:', data);
+        alert('Expected array of customers, got: ' + JSON.stringify(data));
       }
     } catch (err) {
       console.error(err);

@@ -17,6 +17,8 @@ export default function SettingsProfilePage() {
     ntn: '',
     strn: '',
     logoUrl: '',
+    province: '',
+    address: '',
     themeColor: 'default'
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +37,8 @@ export default function SettingsProfilePage() {
             ntn: data.ntn || '',
             strn: data.strn || '',
             logoUrl: data.logoUrl || '',
+            province: data.province || '',
+            address: data.address || '',
             themeColor: data.themeColor || 'default'
           });
           setThemeColor(data.themeColor || 'default');
@@ -144,6 +148,27 @@ export default function SettingsProfilePage() {
                       placeholder="https://example.com/logo.png" 
                     />
                     <p className="text-xs text-slate-500">Provide an image URL to display your logo on the sidebar and invoices.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="province">Province</Label>
+                      <Input 
+                        id="province" 
+                        value={business.province} 
+                        onChange={(e) => setBusiness({...business, province: e.target.value})}
+                        placeholder="E.g. Sindh" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Registered Address</Label>
+                      <Input 
+                        id="address" 
+                        value={business.address} 
+                        onChange={(e) => setBusiness({...business, address: e.target.value})}
+                        placeholder="E.g. 123 Business Avenue, Karachi" 
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-4 flex items-center justify-end">

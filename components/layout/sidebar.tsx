@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileText, UploadCloud, UserCircle2, ChevronDown, List, Users, Package, Archive, Settings } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { LayoutDashboard, FileText, UploadCloud, UserCircle2, ChevronDown, List, Users, Package, Archive, Settings, LogOut } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -164,14 +165,14 @@ export function Sidebar() {
 
       {/* Footer User Dropdown */}
       <div className="p-4 border-t border-white/10">
-        <button className="flex items-center justify-between w-full px-4 py-2 hover:bg-white/10 rounded-md transition-colors">
+        <button onClick={() => signOut({ callbackUrl: '/login' })} className="flex items-center justify-between w-full px-4 py-2 hover:bg-red-500/10 hover:text-red-400 text-white transition-colors rounded-md group">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-800 font-bold text-sm">
+            <div className="h-8 w-8 rounded-full bg-slate-200 group-hover:bg-red-100 flex items-center justify-center text-slate-800 group-hover:text-red-600 font-bold text-sm transition-colors">
               A
             </div>
-            <span className="text-sm font-medium text-white/90">Admin</span>
+            <span className="text-sm font-medium">Logout</span>
           </div>
-          <ChevronDown className="h-4 w-4 text-white/50" />
+          <LogOut className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
         </button>
       </div>
 

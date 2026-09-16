@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Play, Save, Plus, Trash2, AlertCircle, Loader2, CheckSquare, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -93,7 +94,7 @@ export default function NewInvoicePage() {
   // Full FBR Payload State
   const [invoiceType, setInvoiceType] = useState('Sale Invoice');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [applyWht, setApplyWht] = useState(true);
+  const [applyWht, setApplyWht] = useState(false);
   
   // Buyer
   const [buyerRegistrationType, setBuyerRegistrationType] = useState('Registered');
@@ -219,8 +220,8 @@ export default function NewInvoicePage() {
       invoiceDate,
       sellerNTNCNIC: profile?.ntn || '7654321', 
       sellerBusinessName: profile?.name || 'My Company Pvt Ltd',
-      sellerProvince: 'Sindh',
-      sellerAddress: '123 Business Avenue, Karachi',
+      sellerProvince: profile?.province || 'Sindh',
+      sellerAddress: profile?.address || 'Not Provided',
       
       buyerRegistrationType,
       ...(buyerRegistrationType === 'Registered' && { buyerNTNCNIC }),
@@ -462,7 +463,7 @@ export default function NewInvoicePage() {
   const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="min-h-screen bg-slate-200 font-sans text-slate-900 pb-20">
+    <div className="min-h-screen bg-[#f4f7f6] font-sans text-slate-900 pb-20">
       
       {/* Modals remain structurally the same */}
       {showAddCustomerModal && (
@@ -619,7 +620,7 @@ export default function NewInvoicePage() {
             <Button variant="outline" className="h-8 text-xs border-slate-300" onClick={handleDryRunVerify} disabled={isVerifying || isSubmitting}>
               <Play className="mr-1 h-3 w-3 text-blue-600" /> {isVerifying ? "Verifying..." : "Dry Run"}
             </Button>
-            <Button className="h-8 text-xs bg-blue-600 hover:bg-blue-700 shadow-sm" onClick={handlePostToFBR} disabled={isSubmitting}>
+            <Button className="h-8 text-xs bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5" onClick={handlePostToFBR} disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
               {isSubmitting ? "Posting..." : "Post to FBR"}
             </Button>
@@ -629,10 +630,10 @@ export default function NewInvoicePage() {
 
       {/* A4 Canvas */}
       <main className="max-w-[950px] mx-auto mt-8 px-4">
-        <div className="bg-white shadow-2xl shadow-slate-300/50 rounded-sm p-10 md:p-14 min-h-[1100px] relative border border-slate-200">
+        <div className="bg-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-lg p-10 md:p-14 min-h-[1100px] relative border border-slate-100">
           
           {/* Section 1: Header */}
-          <div className="flex justify-between items-start mb-6 border-b border-black pb-8">
+          <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-8">
             <div className="w-[100px] shrink-0">
                <div className="h-[80px] w-[80px] bg-slate-50 flex items-center justify-center text-[#1a3f7a] font-bold text-3xl border border-slate-200 rounded">
                  {profile?.logoUrl ? <img src={profile.logoUrl} className="max-w-full max-h-full" alt="Logo" /> : profile?.name?.[0]?.toUpperCase()}
@@ -670,29 +671,38 @@ export default function NewInvoicePage() {
                         value={buyerNTNCNIC} 
                         onChange={handleNTNChange} 
                         placeholder="Search NTN..." 
-                        className="h-7 text-xs bg-slate-50 border-slate-200 font-mono shadow-inner w-32" 
+                        className="h-8 text-xs bg-white border-slate-200 font-mono focus:ring-1 focus:ring-blue-500 transition-shadow w-32" 
                       />
                       {ntnNotFound && <span className="text-[10px] text-amber-600 self-center font-medium bg-amber-50 px-2 py-0.5 rounded">New Buyer!</span>}
                     </div>
                   </div>
                   <div>
                     <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Business Name / Name</Label>
-                    <Select value={buyerBusinessName} onValueChange={(v) => handleBusinessNameSelect({target: {value: v}} as any)}>
-                      <SelectTrigger className="h-7 text-xs bg-slate-50 border-slate-200 shadow-inner">
-                        <SelectValue placeholder="Select or type..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        <SelectItem value="ADD_NEW" className="text-blue-600 font-bold">+ Add New Customer</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Combobox 
+                      options={customers.map(c => ({ label: `NTN: ${c.ntnOrCnic}`, value: c.name }))}
+                      value={buyerBusinessName}
+                      onChange={(v) => handleBusinessNameSelect({target: {value: v}} as any)}
+                      placeholder="Select or search customer..."
+                    />
                   </div>
                   <div>
-                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Address & Province</Label>
-                    <div className="flex gap-2">
-                      <Input value={buyerAddress} onChange={e => setBuyerAddress(e.target.value)} placeholder="Address" className="h-7 text-xs bg-slate-50 border-slate-200 flex-1 shadow-inner" />
-                      <Input value={buyerProvince} onChange={e => setBuyerProvince(e.target.value)} placeholder="Prov" className="h-7 text-xs w-20 bg-slate-50 border-slate-200 shadow-inner" />
-                    </div>
+                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Complete Address</Label>
+                    <textarea 
+                      value={buyerAddress} 
+                      onChange={e => setBuyerAddress(e.target.value)} 
+                      placeholder="Complete address (Building, Street, City, etc.)" 
+                      rows={3}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-shadow resize-none" 
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[9px] uppercase text-slate-500 font-bold mb-1 block">Province</Label>
+                    <Input 
+                      value={buyerProvince} 
+                      onChange={e => setBuyerProvince(e.target.value)} 
+                      placeholder="e.g. Sindh, Punjab..." 
+                      className="h-8 text-xs bg-white border-slate-200 focus:ring-1 focus:ring-blue-500 transition-shadow w-full" 
+                    />
                   </div>
                 </div>
              </div>
@@ -726,21 +736,21 @@ export default function NewInvoicePage() {
           </div>
 
           {/* Section 3: Line Items Table */}
-          <div className="border border-black">
+          <div className="border rounded-md border-slate-200 overflow-hidden">
              <table className="w-full text-xs text-left">
-               <thead className="bg-[#efefef] text-slate-900 border-b border-black">
+               <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
                   <tr>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-8 text-center text-[10px]">S.#</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold text-[10px]">Description</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-16 text-[10px]">HS Code</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-16 text-center text-[10px]">Qty</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-20 text-right text-[10px]">Unit Price</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-24 text-right text-[10px]">Value Excl.</th>
-                     <th className="px-2 py-1.5 border-r border-black font-bold w-20 text-right text-[10px]">Tax (18%)</th>
-                     <th className="px-2 py-1.5 font-bold w-24 text-right text-[10px]">Total</th>
+                     <th className="px-2 py-2 border-r border-slate-200 font-bold w-8 text-center text-[10px] uppercase">S.#</th>
+                     <th className="px-3 py-2 border-r border-slate-200 font-bold text-[10px] uppercase">Description</th>
+                     <th className="px-2 py-2 border-r border-slate-200 font-bold w-16 text-[10px] uppercase">HS Code</th>
+                     <th className="px-2 py-2 border-r border-slate-200 font-bold w-16 text-center text-[10px] uppercase">Qty</th>
+                     <th className="px-3 py-2 border-r border-slate-200 font-bold w-20 text-right text-[10px] uppercase">Unit Price</th>
+                     <th className="px-3 py-2 border-r border-slate-200 font-bold w-24 text-right text-[10px] uppercase">Value Excl.</th>
+                     <th className="px-3 py-2 border-r border-slate-200 font-bold w-20 text-right text-[10px] uppercase">Tax (18%)</th>
+                     <th className="px-3 py-2 font-bold w-24 text-right text-[10px] uppercase">Total</th>
                   </tr>
                </thead>
-               <tbody className="divide-y divide-black/20">
+               <tbody className="divide-y divide-slate-100">
                   {items.map((item, index) => {
                     const qty = Number(item.quantity || 0);
                     const rate = Number(item.rate || 0);
@@ -751,56 +761,65 @@ export default function NewInvoicePage() {
                     
                     return (
                       <tr key={index} className="group hover:bg-blue-50/50">
-                        <td className="px-2 py-1 border-r border-black text-center align-middle relative">
-                          <span className="group-hover:hidden">{index + 1}</span>
+                        <td className="px-2 py-1 border-r border-slate-200 text-center align-middle relative">
+                          <span className="group-hover:hidden text-slate-500">{index + 1}</span>
                           <button onClick={() => handleRemoveItem(index)} className="hidden group-hover:block mx-auto text-red-500 hover:text-red-700">
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </td>
-                        <td className="px-2 py-1 border-r border-black font-medium">{item.name}</td>
-                        <td className="px-2 py-1 border-r border-black font-mono text-[10px]">{item.hsCode}</td>
-                        <td className="px-0 py-0 border-r border-black align-middle">
-                          <input type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="w-full h-full px-2 py-1.5 bg-transparent text-center focus:outline-none focus:bg-blue-50 text-xs" />
+                        <td className="px-3 py-2 border-r border-slate-200 font-medium text-slate-800">{item.name}</td>
+                        <td className="px-2 py-2 border-r border-slate-200 font-mono text-[10px] text-slate-500">{item.hsCode}</td>
+                        <td className="px-0 py-0 border-r border-slate-200 align-middle">
+                          <div className="flex flex-col h-full w-full justify-center group/qty relative">
+                            <div className="flex items-center w-full h-full">
+                              <input type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} className="flex-1 h-full min-h-[32px] px-2 bg-transparent text-center focus:outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-500 text-xs transition-colors" />
+                              <span className="text-[9px] text-slate-400 font-bold pr-2 bg-transparent pointer-events-none">{item.uom || 'PCS'}</span>
+                            </div>
+                            <div className="absolute top-full left-0 right-0 mt-1 text-xs text-center font-bold opacity-0 group-focus-within/qty:opacity-100 transition-opacity bg-white border border-blue-200 rounded shadow-lg z-[50] py-1.5 px-1 pointer-events-none">
+                              <span className="text-slate-500 font-normal">Stock:</span> {item.stockQty} <br/>
+                              <span className="text-slate-500 font-normal">Left:</span> <span className={(Number(item.stockQty||0) - Number(item.quantity||0)) < 0 ? "text-red-600" : "text-emerald-600"}>{Number(item.stockQty||0) - Number(item.quantity||0)}</span>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-0 py-0 border-r border-black align-middle">
-                          <input type="number" min="0" step="0.01" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="w-full h-full px-2 py-1.5 bg-transparent text-right focus:outline-none focus:bg-blue-50 text-xs" />
+                        <td className="px-0 py-0 border-r border-slate-200 align-middle">
+                          <input type="number" min="0" step="0.01" value={item.rate} onChange={e => handleItemChange(index, 'rate', e.target.value)} className="w-full h-full px-3 py-2 bg-transparent text-right focus:outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-500 text-xs transition-colors" />
                         </td>
-                        <td className="px-2 py-1.5 border-r border-black text-right bg-slate-50/30">{fmt(excl)}</td>
-                        <td className="px-2 py-1.5 border-r border-black text-right bg-slate-50/30">{fmt(tax)}</td>
-                        <td className="px-2 py-1.5 text-right font-medium bg-slate-50/30">{fmt(total)}</td>
+                        <td className="px-3 py-2 border-r border-slate-200 text-right bg-slate-50/50 text-slate-600">{fmt(excl)}</td>
+                        <td className="px-3 py-2 border-r border-slate-200 text-right bg-slate-50/50 text-slate-600">{fmt(tax)}</td>
+                        <td className="px-3 py-2 text-right font-medium bg-slate-50/50 text-slate-900">{fmt(total)}</td>
                       </tr>
                     );
                   })}
                   
                   {/* Add Item Row */}
                   <tr>
-                    <td colSpan={8} className="p-0 border-t border-black">
-                      <button onClick={openItemPicker} className="w-full h-8 flex items-center justify-center gap-1 text-[11px] font-bold text-blue-600 bg-slate-50 hover:bg-blue-50 transition-colors">
-                        <Plus className="h-3 w-3" /> Click to Add Inventory Item
+                    <td colSpan={8} className="p-0 border-t border-slate-200">
+                      <button onClick={openItemPicker} className="w-full h-10 flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-50 transition-colors">
+                        <Plus className="h-3.5 w-3.5" /> Click to Add Inventory Item
                       </button>
                     </td>
                   </tr>
                   
                   {/* Empty filler rows if items < 3 to keep layout height */}
                   {Array.from({ length: Math.max(0, 3 - items.length) }).map((_, i) => (
-                     <tr key={`fill-${i}`} className="h-8 border-t border-black/20">
-                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
-                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
-                       <td className="border-r border-black"></td><td className="border-r border-black"></td>
-                       <td className="border-r border-black"></td><td></td>
+                     <tr key={`fill-${i}`} className="h-10 border-t border-slate-100">
+                       <td className="border-r border-slate-200"></td><td className="border-r border-slate-200"></td>
+                       <td className="border-r border-slate-200"></td><td className="border-r border-slate-200"></td>
+                       <td className="border-r border-slate-200"></td><td className="border-r border-slate-200"></td>
+                       <td className="border-r border-slate-200"></td><td></td>
                      </tr>
                   ))}
                </tbody>
                
                {/* TOTALS FOOTER */}
-               <tfoot className="border-t border-black bg-[#fafafa]">
+               <tfoot className="border-t border-slate-300 bg-slate-50">
                  <tr>
-                   <td colSpan={3} className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">TOTALS:</td>
-                   <td className="px-2 py-2 border-r border-black text-center font-bold text-[11px]">{totQty.toFixed(2)}</td>
-                   <td className="px-2 py-2 border-r border-black"></td>
-                   <td className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">{fmt(totExcl)}</td>
-                   <td className="px-2 py-2 border-r border-black text-right font-bold text-[11px]">{fmt(totStax)}</td>
-                   <td className="px-2 py-2 text-right font-bold text-[12px]">{fmt(grand)}</td>
+                   <td colSpan={3} className="px-3 py-3 border-r border-slate-200 text-right font-bold text-[11px] text-slate-700 uppercase">Totals:</td>
+                   <td className="px-3 py-3 border-r border-slate-200 text-center font-bold text-[11px] text-slate-900">{totQty.toFixed(2)}</td>
+                   <td className="px-3 py-3 border-r border-slate-200"></td>
+                   <td className="px-3 py-3 border-r border-slate-200 text-right font-bold text-[11px] text-slate-900">{fmt(totExcl)}</td>
+                   <td className="px-3 py-3 border-r border-slate-200 text-right font-bold text-[11px] text-slate-900">{fmt(totStax)}</td>
+                   <td className="px-3 py-3 text-right font-bold text-[12px] text-blue-700">{fmt(grand)}</td>
                  </tr>
                </tfoot>
              </table>

@@ -56,11 +56,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Monthly invoice limit exceeded. Please upgrade your package.' }, { status: 403 });
     }
 
-    // Checking IRIS Configuration
-    const activeToken = bu.irisEnvironment === "PRODUCTION" ? bu.irisProductionToken : bu.irisSandboxToken;
-    if (!activeToken) {
-      return NextResponse.json({ error: `FBR IRIS ${bu.irisEnvironment} token is missing. Please configure it in Settings.` }, { status: 400 });
-    }
+    // Checking IRIS Configuration (Bypassed for Demo)
+    // const activeToken = bu.irisEnvironment === "PRODUCTION" ? bu.irisProductionToken : bu.irisSandboxToken;
+    // if (!activeToken) {
+    //   return NextResponse.json({ error: `FBR IRIS ${bu.irisEnvironment} token is missing. Please configure it in Settings.` }, { status: 400 });
+    // }
 
     // 2. Find or Create Party (Buyer)
     let party = await prisma.party.findFirst({

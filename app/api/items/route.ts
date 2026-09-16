@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const items = await prisma.item.findMany({
+      where: { businessUnitId: (session.user as any).businessUnitId },
       orderBy: { name: 'asc' }
     });
     return NextResponse.json(items);
@@ -14,27 +24,20 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await req.json();
     
     if (!data.name || !data.hsCode || data.defaultRate === undefined || data.defaultRate === null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Default business unit logic (since there's no auth yet)
-    // Find or create a default business unit
-    let bu = await prisma.businessUnit.findFirst();
-    if (!bu) {
-        bu = await prisma.businessUnit.create({
-            data: {
-                ntn: '1234567',
-                name: 'Default Business',
-            }
-        });
-    }
-
     const item = await prisma.item.create({
       data: {
-        businessUnitId: bu.id,
+        businessUnitId: (session.user as any).businessUnitId,
         name: data.name,
         internalName: data.internalName || null,
         hsCode: data.hsCode,

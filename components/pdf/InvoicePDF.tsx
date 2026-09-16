@@ -301,6 +301,9 @@ export function InvoicePDF({ invoice }: { invoice: any }) {
             <Text style={s.fbrNum}>FBR Invoice Number: {invoice.fbrIrn || 'N/A'}</Text>
             <View style={s.fbrLogoRow}>
               <Image src={fbrLogo} style={s.fbrLogoImg} />
+              <View style={s.qrBorder}>
+                <Image src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${invoice.fbrIrn || invoice.id}`} style={{ width: 60, height: 60 }} />
+              </View>
             </View>
           </View>
 

@@ -392,18 +392,18 @@ export default function ItemsPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-white border-b border-slate-100 text-slate-600 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Item Name</th>
-                  <th className="px-6 py-3 font-medium">HS Code</th>
-                  <th className="px-6 py-3 font-medium">UOM</th>
-                  <th className="px-6 py-3 font-medium">Pricing & Tax</th>
-                  <th className="px-6 py-3 font-medium text-right">Actions</th>
+                  <th className="px-6 py-3 font-medium text-center">Item Name</th>
+                  <th className="px-6 py-3 font-medium text-center">HS Code</th>
+                  <th className="px-6 py-3 font-medium text-center">UOM</th>
+                  <th className="px-6 py-3 font-medium text-center">Pricing & Tax</th>
+                  <th className="px-6 py-3 font-medium text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {loading ? (
-                  <tr><td colSpan={4} className="p-0"><Loader text="Loading items..." /></td></tr>
+                  <tr><td colSpan={5} className="p-0"><Loader text="Loading items..." /></td></tr>
                 ) : filteredItems.length === 0 ? (
-                  <tr><td colSpan={4} className="p-0"><EmptyState title="Inventory is empty" description={searchQuery ? "No matching items found for your search." : "Add your first product or service using the form on the left."} /></td></tr>
+                  <tr><td colSpan={5} className="p-0"><EmptyState title="Inventory is empty" description={searchQuery ? "No matching items found for your search." : "Add your first product or service using the form on the left."} /></td></tr>
                 ) : (
                   filteredItems.map((item) => (
                     <tr 
@@ -412,7 +412,7 @@ export default function ItemsPage() {
                       className={`transition-colors cursor-pointer ${selectedItemId === item.id ? 'bg-[var(--primary)]/10' : 'hover:bg-slate-50'}`}
                     >
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col items-center justify-center gap-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-slate-900">{item.name}</span>
                             {item.itemType === 'Service' && <Badge className="bg-purple-100 text-purple-700 border-purple-200 px-1 py-0 text-[10px]">Service</Badge>}
@@ -424,18 +424,18 @@ export default function ItemsPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <Badge variant="outline" className="font-mono text-slate-600 bg-slate-50">{item.hsCode}</Badge>
                       </td>
-                      <td className="px-6 py-4 text-slate-600 text-sm">
+                      <td className="px-6 py-4 text-slate-600 text-sm text-center">
                         {item.uom}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <div className="font-medium text-slate-900">Rs {parseFloat(item.defaultRate).toLocaleString()}</div>
                         <div className="text-xs text-slate-500 mt-1">Tax: {item.taxRate}%</div>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex justify-center gap-2">
                           <button onClick={(e) => handleDelete(e, item.id)} className="text-red-400 hover:text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors relative z-10">
                             <Trash2 className="h-4 w-4" />
                           </button>

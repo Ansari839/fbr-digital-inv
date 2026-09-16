@@ -8,7 +8,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email or NTN", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -16,10 +16,26 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: { businessUnit: true },
-        });
+        const loginId = credentials.email.trim();
+        let user;
+
+        if (loginId.includes("@")) {
+          // Login by Email
+          user = await prisma.user.findUnique({
+            where: { email: loginId },
+            include: { businessUnit: true },
+          });
+        } else {
+          // Login by NTN
+          const bu = await prisma.businessUnit.findFirst({
+            where: { ntn: loginId },
+            include: { users: true }
+          });
+          if (bu && bu.users && bu.users.length > 0) {
+            // Find the primary user (admin) for this BusinessUnit
+            user = { ...bu.users[0], businessUnit: bu };
+          }
+        }
 
         if (!user || !user.passwordHash) {
           throw new Error("User not found");

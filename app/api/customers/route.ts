@@ -1,20 +1,38 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      console.error("Customers GET Unauthorized. Session:", session);
+      return NextResponse.json({ error: "Unauthorized", session: session || null }, { status: 401 });
+    }
+
     const customers = await prisma.party.findMany({
+      where: { businessUnitId: (session.user as any).businessUnitId },
       orderBy: { name: 'asc' },
       include: { addresses: true }
     });
-    return NextResponse.json(customers);
+    console.log("Found customers in DB:", customers);
+    return NextResponse.json(customers || []);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    console.error("Customers GET Error:", error);
+    return NextResponse.json({ error: 'Failed to fetch customers', details: String(error) }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !(session.user as any).businessUnitId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await req.json();
     
     // Validate required fields
@@ -24,6 +42,7 @@ export async function POST(req: Request) {
 
     const customer = await prisma.party.create({
       data: {
+        businessUnitId: (session.user as any).businessUnitId,
         name: data.name,
         ntnOrCnic: data.ntnOrCnic,
         isRegistered: data.isRegistered ?? false,
