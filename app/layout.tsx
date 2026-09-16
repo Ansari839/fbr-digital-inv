@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PrintWrapper } from "@/components/layout/print-wrapper";
@@ -22,12 +24,16 @@ import prisma from "@/lib/prisma";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let themeColor = 'default';
   try {
-    const business = await prisma.businessUnit.findFirst({ 
-      orderBy: { id: 'asc' },
-      select: { themeColor: true } 
-    });
-    if (business && business.themeColor) {
-      themeColor = business.themeColor;
+    const session = await getServerSession(authOptions);
+    const buId = (session?.user as any)?.businessUnitId;
+    if (buId) {
+      const business = await prisma.businessUnit.findUnique({ 
+        where: { id: buId },
+        select: { themeColor: true } 
+      });
+      if (business && business.themeColor) {
+        themeColor = business.themeColor;
+      }
     }
   } catch (e) {
     console.error("Failed to load theme from DB", e);

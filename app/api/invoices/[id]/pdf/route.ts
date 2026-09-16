@@ -5,16 +5,23 @@ import prisma from '@/lib/prisma';
 import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 import { ReactElement } from 'react';
 import { DocumentProps } from '@react-pdf/renderer';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.businessUnitId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
     const { id } = await params;
 
     const invoice = await prisma.invoice.findUnique({
-      where: { id },
+      where: { id, businessUnitId: session.user.businessUnitId },
       include: {
         lineItems: {
           include: { item: true },

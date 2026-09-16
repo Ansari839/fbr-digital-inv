@@ -69,7 +69,7 @@ export async function POST(request: Request) {
           { ntnOrCnic: buyerNTNCNIC || "UNKNOWN" },
           { name: buyerBusinessName }
         ],
-        invoices: { some: { businessUnitId: bu.id } } // Ensure party belongs to this tenant
+        businessUnitId: bu.id
       },
       include: { addresses: true }
     });
