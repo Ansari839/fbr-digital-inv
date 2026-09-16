@@ -6,32 +6,39 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const buId = (session?.user as any)?.businessUnitId;
-  
-  const data = await prisma.hsCode.findMany({ 
-    where: {
-      OR: [
-        { businessUnitId: null },
-        ...(buId ? [{ businessUnitId: buId }] : [])
-      ]
-    },
-    orderBy: { code: 'asc' } 
-  });
-  return NextResponse.json(data);
+  try {
+    const session = await getServerSession(authOptions);
+    const buId = (session?.user as any)?.businessUnitId;
+    
+    const data = await prisma.hsCode.findMany({ 
+      where: {
+        businessUnitId: buId
+      },
+      orderBy: { code: 'asc' } 
+    });
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error("HsCode GET Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const buId = (session?.user as any)?.businessUnitId || null;
+  try {
+    const session = await getServerSession(authOptions);
+    const buId = (session?.user as any)?.businessUnitId || null;
 
-  const body = await req.json();
-  const hscode = await prisma.hsCode.create({
-    data: { 
-      code: body.code, 
-      description: body.description || '',
-      businessUnitId: buId
-    }
-  });
-  return NextResponse.json(hscode);
+    const body = await req.json();
+    const hscode = await prisma.hsCode.create({
+      data: { 
+        code: body.code, 
+        description: body.description || '',
+        businessUnitId: buId
+      }
+    });
+    return NextResponse.json(hscode);
+  } catch (error: any) {
+    console.error("HsCode POST Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

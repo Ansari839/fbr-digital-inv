@@ -45,6 +45,10 @@ export function ThemeProvider({ children, initialTheme = 'default' }: { children
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    setThemeColorState(initialTheme);
+  }, [initialTheme]);
+
   const setThemeColor = (color: ThemeColor) => {
     setThemeColorState(color);
     localStorage.setItem('app-theme-color', color);

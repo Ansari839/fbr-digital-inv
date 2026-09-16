@@ -6,32 +6,39 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const buId = (session?.user as any)?.businessUnitId;
-  
-  const data = await prisma.uom.findMany({ 
-    where: {
-      OR: [
-        { businessUnitId: null },
-        ...(buId ? [{ businessUnitId: buId }] : [])
-      ]
-    },
-    orderBy: { code: 'asc' } 
-  });
-  return NextResponse.json(data);
+  try {
+    const session = await getServerSession(authOptions);
+    const buId = (session?.user as any)?.businessUnitId;
+    
+    const data = await prisma.uom.findMany({ 
+      where: {
+        businessUnitId: buId
+      },
+      orderBy: { code: 'asc' } 
+    });
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error("UOM GET Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const buId = (session?.user as any)?.businessUnitId || null;
+  try {
+    const session = await getServerSession(authOptions);
+    const buId = (session?.user as any)?.businessUnitId || null;
 
-  const body = await req.json();
-  const uom = await prisma.uom.create({
-    data: { 
-      code: body.code, 
-      description: body.description || '',
-      businessUnitId: buId
-    }
-  });
-  return NextResponse.json(uom);
+    const body = await req.json();
+    const uom = await prisma.uom.create({
+      data: { 
+        code: body.code, 
+        description: body.description || '',
+        businessUnitId: buId
+      }
+    });
+    return NextResponse.json(uom);
+  } catch (error: any) {
+    console.error("UOM POST Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
