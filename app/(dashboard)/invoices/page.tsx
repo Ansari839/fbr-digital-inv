@@ -142,7 +142,12 @@ export default function InvoicesListPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                invoices.map((inv) => (
+                invoices.map((inv) => {
+                  const fbrTime = inv.fbrTimestamp ? new Date(inv.fbrTimestamp).getTime() : new Date(inv.createdAt).getTime();
+                  const expired = new Date().getTime() > (fbrTime + (72 * 60 * 60 * 1000));
+                  const displayStatus = expired ? 'Submitted' : (inv.status === 'Submitted' ? 'Pending' : inv.status);
+                  
+                  return (
                   <TableRow key={inv.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div className="font-semibold text-slate-900">
@@ -164,10 +169,11 @@ export default function InvoicesListPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline" className={
-                        inv.status === 'Synced' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                        inv.status === 'Draft' ? 'bg-slate-100 text-slate-700' : 'bg-red-50 text-red-700 border-red-200'
+                        displayStatus === 'Submitted' || displayStatus === 'Success' || displayStatus === 'Synced' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                        displayStatus === 'Pending' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                        displayStatus === 'Draft' ? 'bg-slate-100 text-slate-700' : 'bg-red-50 text-red-700 border-red-200'
                       }>
-                        {inv.status}
+                        {displayStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -181,7 +187,8 @@ export default function InvoicesListPage() {
                       </Link>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

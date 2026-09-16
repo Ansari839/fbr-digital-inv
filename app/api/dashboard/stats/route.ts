@@ -18,7 +18,11 @@ export async function GET(req: Request) {
     const invoices = await db.invoice.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        lineItems: true,
+        lineItems: {
+          include: {
+            item: true
+          }
+        },
         party: true
       }
     }) as any[]; // Type assertion to bypass scopedDb loose typing
@@ -48,8 +52,9 @@ export async function GET(req: Request) {
       let invExcl = 0;
       if (inv.lineItems && inv.lineItems.length > 0) {
         for (const item of inv.lineItems) {
-          const itemVal = item.quantity * item.rate;
-          const taxVal = (itemVal * (item.taxRate || 0)) / 100;
+          const itemVal = Number(item.quantity) * Number(item.rate);
+          const taxRate = item.item?.taxRate ? Number(item.item.taxRate) : 18;
+          const taxVal = (itemVal * taxRate) / 100;
           invGST += taxVal;
           invExcl += itemVal;
         }
@@ -93,25 +98,38 @@ export async function GET(req: Request) {
       chartData.push({ name: currentMonth, Total: 0, Success: 0, Failed: 0 });
     }
 
-    const recentInvoices = invoices.slice(0, 5).map(inv => {
+    const recentInvoices = invoices.slice(0, 100).map(inv => {
       let qty = 0;
       let gst = 0;
-      if (inv.lineItems) {
+      let uom = 'PCS';
+      if (inv.lineItems && inv.lineItems.length > 0) {
+        uom = inv.lineItems[0].item?.uom || inv.lineItems[0].uom || 'PCS';
         for (const item of inv.lineItems) {
-          qty += item.quantity;
-          gst += (item.quantity * item.rate * (item.taxRate || 0)) / 100;
+          const q = Number(item.quantity);
+          const r = Number(item.rate);
+          const tr = item.item?.taxRate ? Number(item.item.taxRate) : 18;
+          qty += q;
+          gst += (q * r * tr) / 100;
         }
       }
       const invTotal = inv.totalAmount ? Number(inv.totalAmount.toString()) : 0;
+      
+      const startTime = inv.fbrTimestamp || inv.createdAt;
+      const hoursDiff = (new Date().getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60);
+      const remainingHours = Math.max(0, 72 - hoursDiff);
+
       return {
         id: inv.id,
-        date: new Date(inv.fbrTimestamp || inv.createdAt).toISOString().split('T')[0],
+        date: new Date(startTime).toISOString().split('T')[0],
         fbrInvNum: inv.fbrIrn || 'N/A',
+        buyerName: inv.party?.name || 'Unknown Buyer',
         qty: qty,
+        uom: uom,
         value: invTotal - gst,
         gst: gst,
         total: invTotal,
-        status: inv.status
+        status: inv.status,
+        remainingHours: Number(remainingHours.toFixed(1))
       };
     });
 
